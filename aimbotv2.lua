@@ -338,86 +338,210 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- ===== ON/OFF BUTTONS VISUAL =====
-local function createToggleButton(name, yPos, stateRef)
-    local btn = Instance.new("TextButton", Content)
-    btn.Size = UDim2.new(1,-20,0,28)
-    btn.Position = UDim2.new(0,10,0,yPos)
-    btn.BackgroundColor3 = Color3.fromRGB(40,40,40)
-    btn.BorderSizePixel = 1
-    btn.BorderColor3 = themeColor
-    btn.TextColor3 = Color3.fromRGB(255,255,255)
-    btn.TextScaled = true
-
-    local function updateText()
-        btn.Text = name.." : "..(stateRef() and "ON" or "OFF")
+-- ===== GUI CREATION & BUTTONS =====
+local function createGUI()
+    -- Remove old GUI if exists
+    if LocalPlayer:FindFirstChild("PlayerGui"):FindFirstChild("Aimlock_GUI") then
+        LocalPlayer.PlayerGui.Aimlock_GUI:Destroy()
     end
-    updateText()
 
-    btn.MouseButton1Click:Connect(function()
-        stateRef(not stateRef())
+    local ScreenGui = Instance.new("ScreenGui")
+    ScreenGui.Name = "Aimlock_GUI"
+    ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+    ScreenGui.ResetOnSpawn = false
+
+    -- Main Frame
+    local Frame = Instance.new("Frame", ScreenGui)
+    Frame.Name = "MainFrame"
+    Frame.Size = UDim2.new(0, 280, 0, 350)
+    Frame.Position = UDim2.new(1, -300, 0, 80)
+    Frame.BackgroundColor3 = Color3.fromRGB(20,20,20)
+    Frame.BorderSizePixel = 2
+    Frame.Active = true
+
+    -- Title Bar
+    local TitleBar = Instance.new("Frame", Frame)
+    TitleBar.Size = UDim2.new(1,0,0,28)
+    TitleBar.BackgroundTransparency = 1
+
+    local TitleLabel = Instance.new("TextLabel", TitleBar)
+    TitleLabel.Size = UDim2.new(1,-28,1,0)
+    TitleLabel.Position = UDim2.new(0,10,0,0)
+    TitleLabel.BackgroundTransparency = 1
+    TitleLabel.Text = "Universal Aimbot v2"
+    TitleLabel.TextColor3 = Color3.fromRGB(255,255,255)
+    TitleLabel.TextScaled = true
+    TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+    -- Minimize Button
+    local MinButton = Instance.new("TextButton", TitleBar)
+    MinButton.Size = UDim2.new(0,28,0,28)
+    MinButton.Position = UDim2.new(1,-28,0,0)
+    MinButton.BackgroundColor3 = Color3.fromRGB(30,30,30)
+    MinButton.BorderSizePixel = 1
+    MinButton.Text = "-"
+    MinButton.TextColor3 = Color3.fromRGB(255,255,255)
+    MinButton.TextScaled = true
+
+    local Content = Instance.new("Frame", Frame)
+    Content.Name = "Content"
+    Content.Size = UDim2.new(1,0,1,-28)
+    Content.Position = UDim2.new(0,0,0,28)
+    Content.BackgroundTransparency = 1
+
+    -- ===== Utility: Create Button with ON/OFF =====
+    local function createToggleButton(name, yPos, stateGetter, stateSetter)
+        local btn = Instance.new("TextButton", Content)
+        btn.Size = UDim2.new(1,-20,0,28)
+        btn.Position = UDim2.new(0,10,0,yPos)
+        btn.BackgroundColor3 = Color3.fromRGB(40,40,40)
+        btn.BorderSizePixel = 1
+        btn.TextScaled = true
+        local function updateText()
+            btn.Text = name.." : "..(stateGetter() and "ON" or "OFF")
+        end
         updateText()
-    end)
-    return btn
-end
-
--- State references
-local espState = function(val) if val~=nil then espEnabled=val else return espEnabled end end
-local aimState = function(val) if val~=nil then aimbotEnabled=val else return aimbotEnabled end end
-local headState = function(val) if val~=nil then headAimEnabled=val else return headAimEnabled end end
-
--- Buttons
-createToggleButton("ESP",0,espState)
-createToggleButton("Aimlock",40,aimState)
-createToggleButton("Head Aim",80,headState)
-
--- ===== CREDITS BOTTOM-LEFT =====
-local CreditsLabel = Instance.new("TextLabel", ScreenGui)
-CreditsLabel.Size = UDim2.new(0,200,0,16)
-CreditsLabel.Position = UDim2.new(0,10,1,-20)
-CreditsLabel.BackgroundTransparency = 1
-CreditsLabel.Text = "Script by C_mthe3rd"
-CreditsLabel.TextColor3 = Color3.fromRGB(180,180,180)
-CreditsLabel.TextXAlignment = Enum.TextXAlignment.Left
-CreditsLabel.TextScaled = false
-CreditsLabel.Font = Enum.Font.SourceSans
-CreditsLabel.TextSize = 14
-
--- ===== FINAL TOUCHES =====
--- Ensure GUI always on top
-ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-
--- Smooth dragging
-local draggingFrame, dragInputFrame, dragStartFrame, startPosFrame = false, nil, nil, nil
-local function updateFrame(input)
-    local delta = input.Position - dragStartFrame
-    Frame.Position = UDim2.new(startPosFrame.X.Scale,startPosFrame.X.Offset+delta.X,
-                               startPosFrame.Y.Scale,startPosFrame.Y.Offset+delta.Y)
-end
-TitleBar.InputBegan:Connect(function(input)
-    if input.UserInputType==Enum.UserInputType.MouseButton1 then
-        draggingFrame = true
-        dragStartFrame = input.Position
-        startPosFrame = Frame.Position
-        input.Changed:Connect(function()
-            if input.UserInputState==Enum.UserInputState.End then draggingFrame=false end
+        btn.MouseButton1Click:Connect(function()
+            stateSetter(not stateGetter())
+            updateText()
         end)
+        return btn
     end
-end)
-TitleBar.InputChanged:Connect(function(input)
-    if input.UserInputType==Enum.UserInputType.MouseMovement then dragInputFrame=input end
-end)
-UserInputService.InputChanged:Connect(function(input)
-    if input==dragInputFrame and draggingFrame then updateFrame(input) end
-end)
 
--- Minimize button function
-local minimized = false
-MinButton.MouseButton1Click:Connect(function()
-    minimized = not minimized
-    Content.Visible = not minimized
-    Frame.Size = minimized and UDim2.new(0,260,0,28) or UDim2.new(0,260,0,300)
-end)
+    -- ESP, Aimlock, Head Aim Buttons
+    createToggleButton("ESP", 0, function() return espEnabled end, function(val) espEnabled=val end)
+    createToggleButton("Aimlock", 40, function() return aimbotEnabled end, function(val) aimbotEnabled=val end)
+    createToggleButton("Head Aim", 80, function() return headAimEnabled end, function(val) headAimEnabled=val end)
 
--- ===== READY =====
-print("Universal Aimbot v2 GUI loaded. All systems functional.")
+    -- ===== Theme Button =====
+    local themeColors = {
+        Red = Color3.fromRGB(255,0,0),
+        Blue = Color3.fromRGB(0,122,255),
+        Orange = Color3.fromRGB(255,165,0),
+        Green = Color3.fromRGB(0,255,0),
+        Rainbow = Color3.fromHSV(0,1,1)
+    }
+    local themeNames = {"Red","Blue","Orange","Green","Rainbow"}
+    local currentThemeIndex = 2
+    local ThemeButton = createToggleButton("Theme", 120,
+        function() return true end, -- dummy for ON/OFF text
+        function() end -- dummy
+    )
+    ThemeButton.Text = "Theme: "..themeNames[currentThemeIndex]
+
+    -- Theme color cycling
+    spawn(function()
+        while true do
+            local name = themeNames[currentThemeIndex]
+            local color = themeColors[name]
+            if name=="Rainbow" then
+                color = Color3.fromHSV(tick()%1,1,1)
+            end
+            themeColor = color
+            Frame.BorderColor3 = themeColor
+            for _, hl in pairs(highlightedPlayers) do
+                if hl then
+                    hl.FillColor = themeColor
+                    hl.OutlineColor = themeColor
+                end
+            end
+            if FOVCircle then FOVCircle.Color = themeColor end
+            task.wait(0.05)
+        end
+    end)
+    ThemeButton.MouseButton1Click:Connect(function()
+        currentThemeIndex = currentThemeIndex % #themeNames + 1
+        ThemeButton.Text = "Theme: "..themeNames[currentThemeIndex]
+    end)
+
+    -- ===== FOV Slider =====
+    local SliderLabel = Instance.new("TextLabel", Content)
+    SliderLabel.Size = UDim2.new(1,-20,0,16)
+    SliderLabel.Position = UDim2.new(0,10,0,160)
+    SliderLabel.BackgroundTransparency = 1
+    SliderLabel.Text = "FOV: "..math.floor(fov)
+    SliderLabel.TextColor3 = Color3.fromRGB(255,255,255)
+    SliderLabel.TextXAlignment = Enum.TextXAlignment.Left
+    SliderLabel.Font = Enum.Font.SourceSans
+    SliderLabel.TextSize = 14
+
+    local FOVSlider = Instance.new("Frame", Content)
+    FOVSlider.Size = UDim2.new(1,-20,0,16)
+    FOVSlider.Position = UDim2.new(0,10,0,180)
+    FOVSlider.BackgroundColor3 = Color3.fromRGB(50,50,50)
+    FOVSlider.BorderSizePixel = 1
+
+    local SliderHandle = Instance.new("Frame", FOVSlider)
+    SliderHandle.Size = UDim2.new((fov-minFov)/(maxFov-minFov),0,1,0)
+    SliderHandle.BackgroundColor3 = Color3.fromRGB(0,122,255)
+
+    local dragging, dragStart, startSize = false, nil, nil
+    SliderHandle.InputBegan:Connect(function(input)
+        if input.UserInputType==Enum.UserInputType.MouseButton1 then
+            dragging = true
+            dragStart = input.Position
+            startSize = SliderHandle.Size
+            input.Changed:Connect(function()
+                if input.UserInputState==Enum.UserInputState.End then dragging=false end
+            end)
+        end
+    end)
+    SliderHandle.InputChanged:Connect(function(input)
+        if input.UserInputType==Enum.UserInputType.MouseMovement then dragInput=input end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType==Enum.UserInputType.MouseMovement then
+            local delta = input.Position.X - dragStart.X
+            local newScale = math.clamp(startSize.X.Scale + delta/FOVSlider.AbsoluteSize.X,0,1)
+            SliderHandle.Size = UDim2.new(newScale,0,1,0)
+            fov = minFov + (maxFov-minFov)*newScale
+            SliderLabel.Text = "FOV: "..math.floor(fov)
+        end
+    end)
+
+    -- ===== Draggable GUI =====
+    local draggingFrame, dragStartFrame, startPosFrame = false, nil, nil
+    local function updateFrame(input)
+        local delta = input.Position - dragStartFrame
+        Frame.Position = UDim2.new(startPosFrame.X.Scale, startPosFrame.X.Offset + delta.X,
+                                   startPosFrame.Y.Scale, startPosFrame.Y.Offset + delta.Y)
+    end
+    TitleBar.InputBegan:Connect(function(input)
+        if input.UserInputType==Enum.UserInputType.MouseButton1 then
+            draggingFrame = true
+            dragStartFrame = input.Position
+            startPosFrame = Frame.Position
+            input.Changed:Connect(function()
+                if input.UserInputState==Enum.UserInputState.End then draggingFrame=false end
+            end)
+        end
+    end)
+    TitleBar.InputChanged:Connect(function(input)
+        if input.UserInputType==Enum.UserInputType.MouseMovement then dragInputFrame=input end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if draggingFrame and input==dragInputFrame then updateFrame(input) end
+    end)
+
+    -- ===== Minimize Button =====
+    local minimized = false
+    MinButton.MouseButton1Click:Connect(function()
+        minimized = not minimized
+        Content.Visible = not minimized
+        Frame.Size = minimized and UDim2.new(0,280,0,28) or UDim2.new(0,280,0,350)
+    end)
+
+    -- ===== Credits =====
+    local CreditsLabel = Instance.new("TextLabel", Frame)
+    CreditsLabel.Size = UDim2.new(1,0,0,16)
+    CreditsLabel.Position = UDim2.new(0,10,1,-20)
+    CreditsLabel.BackgroundTransparency = 1
+    CreditsLabel.Text = "Script by C_mthe3rd"
+    CreditsLabel.TextColor3 = Color3.fromRGB(180,180,180)
+    CreditsLabel.TextXAlignment = Enum.TextXAlignment.Left
+    CreditsLabel.Font = Enum.Font.SourceSans
+    CreditsLabel.TextSize = 14
+end
+
+-- Call GUI creator
+createGUI()
