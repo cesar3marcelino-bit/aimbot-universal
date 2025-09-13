@@ -230,6 +230,48 @@ local HeadBtn = makeToggle(Content,"Head Aim",132,false)
 local ThemeBtn = makeThemeButton(Content,192)
 local FOVSlider = makeSlider(Content,"FOV",252,50,500,fov)
 
+-- Create Noclip toggle (below FOV slider)
+local NoclipBtn = makeToggle(Content, "Noclip", 332, false)  -- 332 so it sits nicely below FOV
+
+-- Noclip state
+local noclipEnabled = false
+local originalCollides = {} -- store original CanCollide states
+
+-- Button functionality
+NoclipBtn.MouseButton1Click:Connect(function()
+    noclipEnabled = not noclipEnabled
+    NoclipBtn.Text = "Noclip: "..(noclipEnabled and "On" or "Off")
+
+    if LocalPlayer.Character then
+        for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                if noclipEnabled then
+                    originalCollides[part] = part.CanCollide
+                    part.CanCollide = false
+                else
+                    -- restore original CanCollide
+                    if originalCollides[part] ~= nil then
+                        part.CanCollide = originalCollides[part]
+                    else
+                        part.CanCollide = true
+                    end
+                end
+            end
+        end
+    end
+end)
+
+-- Keep noclip on for new parts if enabled
+RunService.RenderStepped:Connect(function()
+    if noclipEnabled and LocalPlayer.Character then
+        for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = false
+            end
+        end
+    end
+end)
+
 -- Button functionality
 ESPBtn.MouseButton1Click:Connect(function()
     espEnabled = not espEnabled
