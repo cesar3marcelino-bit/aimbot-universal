@@ -1,8 +1,7 @@
 --[[ 
 Script created by C_mthe3rd gaming
 discord for contact: iliketrains9999. (dot at the end)
-Final merged script: reliable ESP, draggable GUI, minimizer above UI,
-theme sync, clouds+rain with splashes, FOV circle tied to Aimlock, sliders, tweens kept.
+Polished version: GUI issues fixed, clouds+rain+splashes, FOV Circle slider visibility, credits below title, minimized button top-right.
 ]] 
 
 -- ===== Settings =====
@@ -16,7 +15,6 @@ local espEnabled = true
 local headAimEnabled = false
 local currentTarget = nil
 local currentTargetDistance = "N/A"
--- theme modes: 1=Red,2=Blue,3=Rainbow,4=Rainy
 local themeMode = 2
 local themeColor = Color3.fromRGB(0, 122, 255)
 local rainbowEnabled = false
@@ -33,7 +31,7 @@ local LocalPlayer = Players.LocalPlayer
 -- ===== Highlight storage =====
 local highlightedPlayers = {}
 
--- ===== Drawing FOV circle (safe) =====
+-- ===== Drawing FOV Circle =====
 local DrawingAvailable, DrawingAPI = pcall(function() return Drawing end)
 local FOVCircle = nil
 if DrawingAvailable and type(DrawingAPI) == "table" then
@@ -51,7 +49,7 @@ if DrawingAvailable and type(DrawingAPI) == "table" then
     if ok then FOVCircle = circle end
 end
 
--- ===== Utility: root part finder (robust) =====
+-- ===== Utility: find root part =====
 local function findRootPart(character)
     if not character then return nil end
     local names = {"HumanoidRootPart", "LowerTorso", "UpperTorso", "Torso"}
@@ -69,7 +67,7 @@ local function findRootPart(character)
     return nil
 end
 
--- ===== Compute theme color =====
+-- ===== Theme color computation =====
 local function computeThemeColor()
     if themeMode == 1 then
         rainbowEnabled = false; rainyEnabled = false
@@ -90,7 +88,7 @@ local function computeThemeColor()
     end
 end
 
--- ===== Create / maintain Highlight (robust) =====
+-- ===== Remove / setup highlight =====
 local function removeHighlight(player)
     if highlightedPlayers[player] then
         pcall(function() highlightedPlayers[player]:Destroy() end)
@@ -192,12 +190,13 @@ local function lockOnTarget()
     end
 end
 
--- ===== Main render loop for ESP & Aimbot =====
+-- ===== Main render loop =====
 RunService.RenderStepped:Connect(function()
-    -- Update theme color (handles rainbow)
+    -- update theme color (handles rainbow)
     local newTheme = computeThemeColor()
     if newTheme ~= themeColor then
         themeColor = newTheme
+        -- update highlights
         for _, hl in pairs(highlightedPlayers) do
             if hl and typeof(hl) == "Instance" then
                 pcall(function() hl.FillColor = themeColor; hl.OutlineColor = themeColor end)
@@ -205,7 +204,7 @@ RunService.RenderStepped:Connect(function()
         end
     end
 
-    -- Update FOV drawing circle
+    -- update FOV circle
     if FOVCircle then
         pcall(function()
             FOVCircle.Position = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
@@ -215,7 +214,7 @@ RunService.RenderStepped:Connect(function()
         end)
     end
 
-    -- Ensure highlights exist / are updated
+    -- ensure highlights exist/are updated
     if espEnabled then
         for _, player in pairs(Players:GetPlayers()) do
             if player ~= LocalPlayer then
@@ -236,7 +235,7 @@ RunService.RenderStepped:Connect(function()
         end
     end
 
-    -- Aimbot behavior
+    -- aimbot behavior
     if aimbotEnabled then
         if UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
             if not currentTarget then currentTarget = getClosestTarget() end
@@ -258,36 +257,11 @@ local function createGUI()
     local Frame = Instance.new("Frame", ScreenGui)
     Frame.Name = "MainFrame"
     Frame.Size = UDim2.new(0, 260, 0, 300)
-    Frame.Position = UDim2.new(0.5, -130, 0.3, -150) -- Centered better
+    Frame.Position = UDim2.new(1, -280, 0, 80)
     Frame.BackgroundColor3 = Color3.fromRGB(20,20,20)
     Frame.BorderSizePixel = 2
     Frame.BorderColor3 = themeColor
     Frame.Active = true
-
-    -- Rain layer
-    local RainLayer = Instance.new("Frame", Frame)
-    RainLayer.Name = "RainLayer"
-    RainLayer.Size = UDim2.new(1,0,1,0)
-    RainLayer.Position = UDim2.new(0,0,0,0)
-    RainLayer.BackgroundTransparency = 1
-    RainLayer.ClipsDescendants = true
-    RainLayer.ZIndex = 0
-
-    -- Clouds
-    local function createCloud(xOffset, y, sx, sy)
-        local cloud = Instance.new("Frame", RainLayer)
-        cloud.Size = UDim2.new(0, sx, 0, sy)
-        cloud.Position = UDim2.new(0, xOffset, 0, y)
-        cloud.BackgroundColor3 = Color3.fromRGB(230,230,240)
-        cloud.BorderSizePixel = 0
-        local corner = Instance.new("UICorner", cloud)
-        corner.CornerRadius = UDim.new(1,0)
-        cloud.ZIndex = 0
-        return cloud
-    end
-    local cloudA = createCloud(0.04, 8, 120, 36)
-    local cloudB = createCloud(0.45, 2, 160, 48)
-    local cloudC = createCloud(0.72, 12, 110, 34)
 
     -- Content container
     local Content = Instance.new("Frame", Frame)
@@ -314,15 +288,15 @@ local function createGUI()
     TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
     TitleLabel.ZIndex = 3
 
-    -- Credits under title (moved correctly)
+    -- Credits under title (fixed outside Aimlock)
     local CreditsLabel = Instance.new("TextLabel", Frame)
     CreditsLabel.Size = UDim2.new(1, -10, 0, 16)
-    CreditsLabel.Position = UDim2.new(0, 10, 0, 4)
+    CreditsLabel.Position = UDim2.new(0, 10, 0, 28)
     CreditsLabel.BackgroundTransparency = 1
     CreditsLabel.Text = "Script By C_mthe3rd"
     CreditsLabel.TextColor3 = Color3.fromRGB(180,180,180)
     CreditsLabel.TextScaled = true
-    CreditsLabel.TextXAlignment = Enum.TextXAlignment.Right
+    CreditsLabel.TextXAlignment = Enum.TextXAlignment.Left
     CreditsLabel.Font = Enum.Font.SourceSans
     CreditsLabel.TextSize = 14
     CreditsLabel.ZIndex = 3
@@ -357,7 +331,11 @@ local function createGUI()
     local AimBtn = createButton("Aimlock: OFF", 6, function(btn)
         aimbotEnabled = not aimbotEnabled
         btn.Text = aimbotEnabled and "Aimlock: ON" or "Aimlock: OFF"
-        if FOVCircle then pcall(function() FOVCircle.Visible = aimbotEnabled end) end
+        if FOVCircle then
+            pcall(function() FOVCircle.Visible = aimbotEnabled end)
+        end
+        -- show/hide FOV slider when Aimlock toggled
+        Content.FOVSlider.Visible = aimbotEnabled
     end)
 
     -- Head aim toggle
@@ -380,48 +358,49 @@ local function createGUI()
         elseif themeMode == 2 then btn.Text = "Theme: BLUE"
         elseif themeMode == 3 then btn.Text = "Theme: RAINBOW"
         elseif themeMode == 4 then btn.Text = "Theme: RAINY" end
+
         themeColor = computeThemeColor()
         Frame.BorderColor3 = themeColor
         for _, b in pairs(buttons) do if b then b.BorderColor3 = themeColor end end
     end)
 
-       -- Distance label
+      -- Distance label
     local DistanceLabel = Instance.new("TextLabel", Content)
     DistanceLabel.Size = UDim2.new(0, 220, 0, 22)
-    DistanceLabel.Position = UDim2.new(0,20,0,144)
+    DistanceLabel.Position = UDim2.new(0, 20, 0, 144)
     DistanceLabel.BackgroundTransparency = 1
     DistanceLabel.TextColor3 = Color3.fromRGB(255,255,255)
     DistanceLabel.TextScaled = true
     DistanceLabel.Text = "Distance: N/A"
     DistanceLabel.ZIndex = 4
 
-    -- FOV slider
+    -- FOV slider renamed "FOV Circle" (only visible when Aimlock is ON)
     local FOVLabel = Instance.new("TextLabel", Content)
     FOVLabel.Size = UDim2.new(0, 220, 0, 20)
-    FOVLabel.Position = UDim2.new(0,20,0,172)
+    FOVLabel.Position = UDim2.new(0, 20, 0, 172)
     FOVLabel.BackgroundTransparency = 1
     FOVLabel.TextColor3 = themeColor
     FOVLabel.TextScaled = true
-    FOVLabel.Text = "FOV: " .. tostring(fov)
+    FOVLabel.Text = "FOV Circle: "..tostring(fov)
     FOVLabel.ZIndex = 4
 
     local SliderBg = Instance.new("Frame", Content)
     SliderBg.Size = UDim2.new(0, 220, 0, 18)
-    SliderBg.Position = UDim2.new(0,20,0,196)
+    SliderBg.Position = UDim2.new(0, 20, 0, 196)
     SliderBg.BackgroundColor3 = Color3.fromRGB(40,40,40)
     SliderBg.BorderSizePixel = 1
     SliderBg.BorderColor3 = Color3.fromRGB(30,30,30)
     SliderBg.ZIndex = 4
 
     local SliderFill = Instance.new("Frame", SliderBg)
-    SliderFill.Size = UDim2.new(math.clamp((fov - minFov)/(maxFov-minFov),0,1),0,1,0)
+    SliderFill.Size = UDim2.new(math.clamp((fov-minFov)/(maxFov-minFov),0,1),0,1,0)
     SliderFill.Position = UDim2.new(0,0,0,0)
     SliderFill.BackgroundColor3 = themeColor
     SliderFill.BorderSizePixel = 0
     SliderFill.ZIndex = 4
 
     local Knob = Instance.new("TextButton", SliderBg)
-    Knob.Size = UDim2.new(0, 14, 1, 0)
+    Knob.Size = UDim2.new(0,14,1,0)
     Knob.AnchorPoint = Vector2.new(0.5,0.5)
     Knob.Position = UDim2.new(SliderFill.Size.X.Scale,0,0.5,0)
     Knob.BackgroundColor3 = Color3.fromRGB(220,220,220)
@@ -436,7 +415,7 @@ local function createGUI()
         SliderFill.Size = UDim2.new(rel,0,1,0)
         Knob.Position = UDim2.new(rel,0,0.5,0)
         fov = math.floor(minFov + rel*(maxFov-minFov))
-        FOVLabel.Text = "FOV: " .. tostring(fov)
+        FOVLabel.Text = "FOV Circle: "..tostring(fov)
         if FOVCircle then pcall(function() FOVCircle.Radius = fov end) end
     end
 
@@ -459,11 +438,38 @@ local function createGUI()
             setFOVFromRel(rel)
         end
     end)
+    Content.FOVSlider = SliderBg
+    Content.FOVSlider.Visible = false -- starts hidden
 
-    -- ===== Minimizer button =====
-    local MinimizeBtn = Instance.new("TextButton", Frame)
-    MinimizeBtn.Size = UDim2.new(0,28,0,28)
-    MinimizeBtn.Position = UDim2.new(1, -32, 0, 0) -- top-right corner
+    -- Rain layer
+    local RainLayer = Instance.new("Frame", Frame)
+    RainLayer.Name = "RainLayer"
+    RainLayer.Size = UDim2.new(1,0,1,0)
+    RainLayer.Position = UDim2.new(0,0,0,0)
+    RainLayer.BackgroundTransparency = 1
+    RainLayer.ClipsDescendants = true
+    RainLayer.ZIndex = 0
+
+    -- Clouds
+    local function createCloud(xOffset, y, sx, sy)
+        local cloud = Instance.new("Frame", RainLayer)
+        cloud.Size = UDim2.new(0, sx, 0, sy)
+        cloud.Position = UDim2.new(0, xOffset, 0, y)
+        cloud.BackgroundColor3 = Color3.fromRGB(230,230,240)
+        cloud.BorderSizePixel = 0
+        local corner = Instance.new("UICorner", cloud)
+        corner.CornerRadius = UDim.new(1,0)
+        cloud.ZIndex = 0
+        return cloud
+    end
+    local cloudA = createCloud(0.04, 8, 120, 36)
+    local cloudB = createCloud(0.45, 2, 160, 48)
+    local cloudC = createCloud(0.72, 12, 110, 34)
+
+    -- Minimizer button (above GUI, fixed)
+    local MinimizeBtn = Instance.new("TextButton", ScreenGui)
+    MinimizeBtn.Size = UDim2.new(0,28,0,20)
+    MinimizeBtn.Position = UDim2.new(1, -310, 0, 60) -- fixed above GUI
     MinimizeBtn.BackgroundColor3 = Color3.fromRGB(45,45,45)
     MinimizeBtn.BorderSizePixel = 1
     MinimizeBtn.BorderColor3 = themeColor
@@ -488,7 +494,7 @@ local function createGUI()
         end
     end)
 
-    -- ===== Smooth draggable GUI =====
+        -- ===== Smooth draggable GUI =====
     local draggingGui = false
     local dragStart, startPos, targetPos
     TitleBar.InputBegan:Connect(function(input)
@@ -536,15 +542,20 @@ local function createGUI()
                 splash.BackgroundColor3 = Color3.fromRGB(180,200,255)
                 splash.BorderSizePixel = 0
                 splash.ZIndex = 1
-                TweenService:Create(splash, TweenInfo.new(0.15,Enum.EasingStyle.Quad),{Size=UDim2.new(0,0,0,0), Position=UDim2.new(0,xPixel,0,targetY)}):Play()
-                task.delay(0.15,function() pcall(function() splash:Destroy() end) end)
+                local splashTween = TweenService:Create(splash, TweenInfo.new(0.15,Enum.EasingStyle.Quad),{Size=UDim2.new(0,0,0,0), Position=UDim2.new(0,xPixel,0,targetY)})
+                splashTween:Play()
+                splashTween.Completed:Connect(function() pcall(function() splash:Destroy() end) end)
             end)
         end)
     end
     spawn(function()
         while true do
-            if rainyEnabled then spawnRaindrop() task.wait(0.04 + math.random()*0.04)
-            else task.wait(0.16) end
+            if rainyEnabled then
+                spawnRaindrop()
+                task.wait(0.04 + math.random()*0.04)
+            else
+                task.wait(0.16)
+            end
         end
     end)
 
@@ -567,7 +578,7 @@ local function createGUI()
         end
     end)
 
-    -- Update distance label constantly
+    -- ===== Update distance & target & FOV slider visibility =====
     RunService.RenderStepped:Connect(function()
         local closest = getClosestTarget()
         if closest and closest ~= LocalPlayer and closest.Character and findRootPart(closest.Character) and LocalPlayer.Character and findRootPart(LocalPlayer.Character) then
@@ -578,14 +589,198 @@ local function createGUI()
             DistanceLabel.Text = "Distance: N/A"
             currentTarget = nil
         end
-        if aimbotEnabled then lockOnTarget() end
+
+        -- Show/hide FOV Circle slider based on Aimlock
+        Content.FOVSlider.Visible = aimbotEnabled
+        FOVLabel.Visible = aimbotEnabled
+
+        -- Apply theme color
         themeColor = computeThemeColor()
         Frame.BorderColor3 = themeColor
         for _, b in pairs(buttons) do if b then b.BorderColor3 = themeColor end end
         SliderFill.BackgroundColor3 = themeColor
         FOVLabel.TextColor3 = themeColor
+
+        if aimbotEnabled then lockOnTarget() end
+    end)
+
+      -- ===== Buttons functionality & animation =====
+    -- Aimlock toggle
+    AimBtn.MouseButton1Click:Connect(function()
+        aimbotEnabled = not aimbotEnabled
+        AimBtn.Text = aimbotEnabled and "Aimlock: ON" or "Aimlock: OFF"
+        if FOVCircle then
+            pcall(function() FOVCircle.Visible = aimbotEnabled end)
+        end
+        -- Show/hide FOV slider
+        Content.FOVSlider.Visible = aimbotEnabled
+        FOVLabel.Visible = aimbotEnabled
+
+        -- Button animation
+        local inTween = TweenService:Create(AimBtn, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(0,230,0,28)})
+        local outTween = TweenService:Create(AimBtn, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(0,220,0,26)})
+        inTween:Play(); inTween.Completed:Wait(); outTween:Play()
+    end)
+
+    -- Head Aim toggle
+    HeadBtn.MouseButton1Click:Connect(function()
+        headAimEnabled = not headAimEnabled
+        HeadBtn.Text = headAimEnabled and "Head Aim: ON" or "Head Aim: OFF"
+        local inTween = TweenService:Create(HeadBtn, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(0,230,0,28)})
+        local outTween = TweenService:Create(HeadBtn, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(0,220,0,26)})
+        inTween:Play(); inTween.Completed:Wait(); outTween:Play()
+    end)
+
+    -- ESP toggle
+    EspBtn.MouseButton1Click:Connect(function()
+        espEnabled = not espEnabled
+        EspBtn.Text = espEnabled and "ESP: ON" or "ESP: OFF"
+        local inTween = TweenService:Create(EspBtn, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(0,230,0,28)})
+        local outTween = TweenService:Create(EspBtn, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(0,220,0,26)})
+        inTween:Play(); inTween.Completed:Wait(); outTween:Play()
+    end)
+
+    -- Theme toggle
+    ThemeBtn.MouseButton1Click:Connect(function()
+        themeMode = themeMode + 1
+        if themeMode > 4 then themeMode = 1 end
+        if themeMode == 1 then ThemeBtn.Text = "Theme: RED"
+        elseif themeMode == 2 then ThemeBtn.Text = "Theme: BLUE"
+        elseif themeMode == 3 then ThemeBtn.Text = "Theme: RAINBOW"
+        elseif themeMode == 4 then ThemeBtn.Text = "Theme: RAINY" end
+
+        themeColor = computeThemeColor()
+        Frame.BorderColor3 = themeColor
+        for _, b in pairs(buttons) do if b then b.BorderColor3 = themeColor end end
+        SliderFill.BackgroundColor3 = themeColor
+
+        local inTween = TweenService:Create(ThemeBtn, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(0,230,0,28)})
+        local outTween = TweenService:Create(ThemeBtn, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(0,220,0,26)})
+        inTween:Play(); inTween.Completed:Wait(); outTween:Play()
+    end)
+
+    -- ===== Adjust Credits below title =====
+    CreditsLabel.Position = UDim2.new(0, 10, 0, 28)
+    CreditsLabel.TextXAlignment = Enum.TextXAlignment.Left
+    CreditsLabel.TextScaled = false
+    CreditsLabel.Font = Enum.Font.SourceSans
+    CreditsLabel.TextSize = 14
+
+     -- ===== Minimize button adjustments =====
+    MinimizeBtn.Position = UDim2.new(1, -32, 0, 4) -- top-right, not covering title
+    MinimizeBtn.MouseButton1Click:Connect(function()
+        minimized = not minimized
+        if minimized then
+            Content.Visible = false
+            if FOVLabel then FOVLabel.Visible = false end
+            if Content.FOVSlider then Content.FOVSlider.Visible = false end
+            TweenService:Create(Frame, TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size=UDim2.new(0,260,0,34)}):Play()
+            MinimizeBtn.Text = "+"
+        else
+            TweenService:Create(Frame, TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size=UDim2.new(0,260,0,300)}):Play()
+            task.wait(0.16)
+            Content.Visible = true
+            if aimbotEnabled then
+                if FOVLabel then FOVLabel.Visible = true end
+                if Content.FOVSlider then Content.FOVSlider.Visible = true end
+            end
+            MinimizeBtn.Text = "—"
+        end
+    end)
+
+    -- ===== Rain spawns with splashes =====
+    local function spawnRaindrop()
+        if not rainyEnabled then return end
+        local width = math.max(30, Frame.AbsoluteSize.X-6)
+        local xPixel = math.random(4, width-4)
+        local drop = Instance.new("Frame", RainLayer)
+        drop.Size = UDim2.new(0,2,0,10)
+        drop.Position = UDim2.new(0,xPixel,0,-20)
+        drop.BackgroundColor3 = Color3.fromRGB(200,220,255)
+        drop.BorderSizePixel = 0
+        drop.ZIndex = 1
+        local fallTime = 0.5 + math.random()*0.5
+        local targetY = Frame.AbsoluteSize.Y + 30
+        local tween = TweenService:Create(drop, TweenInfo.new(fallTime,Enum.EasingStyle.Linear), {Position=UDim2.new(0,xPixel,0,targetY)})
+        tween:Play()
+        tween.Completed:Connect(function()
+            pcall(function()
+                drop:Destroy()
+                -- splash effect
+                local splash = Instance.new("Frame", RainLayer)
+                splash.Size = UDim2.new(0,6,0,2)
+                splash.Position = UDim2.new(0,xPixel,0,targetY-2)
+                splash.BackgroundColor3 = Color3.fromRGB(180,200,255)
+                splash.BorderSizePixel = 0
+                splash.ZIndex = 1
+                TweenService:Create(splash, TweenInfo.new(0.15,Enum.EasingStyle.Quad), {Size=UDim2.new(0,0,0,0), Position=UDim2.new(0,xPixel,0,targetY)}):Play()
+                task.delay(0.15,function() pcall(function() splash:Destroy() end) end)
+            end)
+        end)
+    end
+
+    spawn(function()
+        while true do
+            if rainyEnabled then
+                spawnRaindrop()
+                task.wait(0.04 + math.random()*0.04)
+            else
+                task.wait(0.16)
+            end
+        end
+    end)
+
+        -- ===== Cloud movement for Rainy theme =====
+    spawn(function()
+        while true do
+            if rainyEnabled then
+                local endX = Frame.AbsoluteSize.X + 200
+                pcall(function()
+                    cloudA.Position = UDim2.new(0,-150,0,6)
+                    cloudB.Position = UDim2.new(0,-80,0,2)
+                    cloudC.Position = UDim2.new(0,-120,0,12)
+                    local tweenA = TweenService:Create(cloudA, TweenInfo.new(12,Enum.EasingStyle.Linear), {Position=UDim2.new(0,endX/Frame.AbsoluteSize.X,0,6)})
+                    local tweenB = TweenService:Create(cloudB, TweenInfo.new(16,Enum.EasingStyle.Linear), {Position=UDim2.new(0,endX/Frame.AbsoluteSize.X,0,2)})
+                    local tweenC = TweenService:Create(cloudC, TweenInfo.new(10,Enum.EasingStyle.Linear), {Position=UDim2.new(0,endX/Frame.AbsoluteSize.X,0,12)})
+                    tweenA:Play(); tweenB:Play(); tweenC:Play()
+                    tweenA.Completed:Wait(); tweenB.Completed:Wait(); tweenC.Completed:Wait()
+                end)
+            else
+                task.wait(0.5)
+            end
+        end
+    end)
+
+    -- ===== Update distance & FOV label dynamically =====
+    RunService.RenderStepped:Connect(function()
+        local closest = getClosestTarget()
+        if closest and closest ~= LocalPlayer and closest.Character and findRootPart(closest.Character) and LocalPlayer.Character and findRootPart(LocalPlayer.Character) then
+            local dist = (findRootPart(LocalPlayer.Character).Position - findRootPart(closest.Character).Position).Magnitude
+            DistanceLabel.Text = "Distance: "..math.floor(dist)
+            currentTarget = closest
+        else
+            DistanceLabel.Text = "Distance: N/A"
+            currentTarget = nil
+        end
+
+        -- Aimbot target lock
+        if aimbotEnabled then lockOnTarget() end
+
+        -- Update theme color and button borders
+        themeColor = computeThemeColor()
+        Frame.BorderColor3 = themeColor
+        for _, b in pairs(buttons) do if b then b.BorderColor3 = themeColor end end
+        SliderFill.BackgroundColor3 = themeColor
+        FOVLabel.TextColor3 = themeColor
+
+        -- Show FOV slider only if Aimlock is enabled
+        if Content.FOVSlider then
+            Content.FOVSlider.Visible = aimbotEnabled
+            FOVLabel.Visible = aimbotEnabled
+        end
     end)
 end
 
 -- ===== Initialize GUI =====
 createGUI()
+
