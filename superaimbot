@@ -1,41 +1,105 @@
 --[[
     Script created by c_mthe3rd gaming
-   discord for contact: iliketrains9999. (dot at the end)
+    discord for contact: iliketrains9999. (dot at the end)
     Please do not re-upload or redistribute without credit.
+    Merged features: theme modes (red/blue/rainbow/rainy), draggable GUI,
+    minimizer, smooth button tweens, FOV circle (Drawing), slider & label,
+    no-self ESP & aim, distance updates, raindrop animation for rainy theme.
 ]]
- 
+
+-- ===== Settings =====
 local teamCheck = false
 local fov = 120
+local minFov = 50
+local maxFov = 500
 local lockPart = "HumanoidRootPart"
 local aimbotEnabled = false
 local espEnabled = true
 local headAimEnabled = false
 local currentTarget = nil
 local currentTargetDistance = "N/A"
+
+-- theme modes: 1=Red,2=Blue,3=Rainbow,4=Rainy
+local themeMode = 2
 local themeColor = Color3.fromRGB(0, 122, 255)
- 
-local RunService = game:GetService("RunService")
+local rainbowEnabled = false
+local rainyEnabled = false
+
+-- ===== Services =====
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
 local Camera = workspace.CurrentCamera
- 
--- **ESP Variables**
+local LocalPlayer = Players.LocalPlayer
+
+-- ===== Highlight storage =====
 local highlightedPlayers = {}
- 
--- **Create Highlight Function**
+
+-- ===== Drawing FOV circle (safe) =====
+local DrawingAvailable, DrawingAPI = pcall(function() return Drawing end)
+local FOVCircle = nil
+if DrawingAvailable and type(DrawingAPI) == "table" then
+    local ok, circle = pcall(function()
+        local c = Drawing.new("Circle")
+        c.Thickness = 2
+        c.NumSides = 100
+        c.Filled = false
+        c.Radius = fov
+        c.Visible = false
+        c.Color = themeColor
+        c.Position = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
+        return c
+    end)
+    if ok then FOVCircle = circle end
+end
+
+-- ===== Utility: update themeColor based on themeMode =====
+local function computeThemeColor()
+    if themeMode == 1 then
+        rainbowEnabled = false; rainyEnabled = false
+        return Color3.fromRGB(255,0,0)
+    elseif themeMode == 2 then
+        rainbowEnabled = false; rainyEnabled = false
+        return Color3.fromRGB(0,122,255)
+    elseif themeMode == 3 then
+        rainbowEnabled = true; rainyEnabled = false
+        local t = tick() * 0.2
+        return Color3.fromHSV((t % 1), 1, 1)
+    elseif themeMode == 4 then
+        rainbowEnabled = false; rainyEnabled = true
+        return Color3.fromRGB(140,160,185) -- gray-blue for rainy theme
+    else
+        rainbowEnabled = false; rainyEnabled = false
+        return Color3.fromRGB(0,122,255)
+    end
+end
+
+-- ===== Create Highlight =====
 local function createHighlight(player)
+    if player == LocalPlayer then return end
+    if not player.Character then return end
+
     local function setupHighlight(character)
-        if character:FindFirstChild("HumanoidRootPart") then
-            local highlight = Instance.new("Highlight")
-            highlight.Adornee = character
-            highlight.FillColor = themeColor
-            highlight.FillTransparency = 0.5
-            highlight.OutlineColor = Color3.new(1, 1, 1)
-            highlight.OutlineTransparency = 0.3
-            highlight.Enabled = espEnabled
-            highlight.Parent = character
- 
-            highlightedPlayers[player] = highlight
+        if character and character:FindFirstChild("HumanoidRootPart") then
+            if highlightedPlayers[player] and typeof(highlightedPlayers[player])=="Instance" and highlightedPlayers[player].Parent==nil then
+                highlightedPlayers[player] = nil
+            end
+            if not highlightedPlayers[player] then
+                local highlight = Instance.new("Highlight")
+                highlight.Adornee = character
+                highlight.FillColor = themeColor
+                highlight.FillTransparency = 0.5
+                highlight.OutlineColor = Color3.new(1,1,1)
+                highlight.OutlineTransparency = 0.3
+                highlight.Enabled = espEnabled
+                highlight.Parent = character
+                highlightedPlayers[player] = highlight
+            else
+                highlightedPlayers[player].Adornee = character
+                highlightedPlayers[player].Enabled = espEnabled
+                highlightedPlayers[player].FillColor = themeColor
+            end
         else
             task.delay(1, function()
                 if character and character:FindFirstChild("HumanoidRootPart") then
@@ -44,53 +108,36 @@ local function createHighlight(player)
             end)
         end
     end
- 
-    if player.Character then
-        setupHighlight(player.Character)
-    end
- 
-    player.CharacterAdded:Connect(function(character)
-        wait(0.5)
-        setupHighlight(character)
-    end)
+
+    if player.Character then setupHighlight(player.Character) end
+    player.CharacterAdded:Connect(function(character) wait(0.5); setupHighlight(character) end)
 end
- 
+
 local function removeHighlight(player)
     if highlightedPlayers[player] then
-        highlightedPlayers[player]:Destroy()
+        pcall(function() highlightedPlayers[player]:Destroy() end)
         highlightedPlayers[player] = nil
     end
 end
- 
-RunService.RenderStepped:Connect(function()
-    if espEnabled then
-        for _, player in pairs(Players:GetPlayers()) do
-            if not highlightedPlayers[player] and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                createHighlight(player)
-            elseif highlightedPlayers[player] then
-                highlightedPlayers[player].Enabled = espEnabled
-            end
-        end
-    end
-end)
- 
+
+-- ===== Target selection =====
 local function getClosestTarget()
     local closestTarget = nil
     local shortestDistance = math.huge
-    local screenCenter = Camera.ViewportSize / 2
-    local playerPosition = Players.LocalPlayer.Character and Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and Players.LocalPlayer.Character["HumanoidRootPart"].Position or Vector3.new(0, 0, 0)
- 
+    local screenCenter = Camera.ViewportSize/2
+    local playerPosition = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character.HumanoidRootPart.Position or Vector3.new(0,0,0)
+
     for _, player in pairs(Players:GetPlayers()) do
-        if player ~= Players.LocalPlayer and player.Character then
+        if player ~= LocalPlayer and player.Character then
             local targetPart = headAimEnabled and player.Character:FindFirstChild("Head") or player.Character:FindFirstChild("HumanoidRootPart")
             local humanoid = player.Character:FindFirstChild("Humanoid")
             if targetPart and humanoid and humanoid.Health > 0 then
                 local distanceFromPlayer = (playerPosition - targetPart.Position).Magnitude
                 local screenPoint, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
                 local distanceOnScreen = (Vector2.new(screenPoint.X, screenPoint.Y) - screenCenter).Magnitude
- 
+
                 if onScreen and distanceOnScreen < shortestDistance and distanceOnScreen <= fov then
-                    if not teamCheck or player.Team ~= Players.LocalPlayer.Team then
+                    if not teamCheck or player.Team ~= LocalPlayer.Team then
                         closestTarget = player
                         shortestDistance = distanceOnScreen
                         currentTargetDistance = math.floor(distanceFromPlayer)
@@ -101,126 +148,426 @@ local function getClosestTarget()
     end
     return closestTarget
 end
- 
+
+-- ===== Lock-on =====
 local function lockOnTarget()
-    if currentTarget and currentTarget.Character then
+    if currentTarget and currentTarget ~= LocalPlayer and currentTarget.Character then
         local targetPart = headAimEnabled and currentTarget.Character:FindFirstChild("Head") or currentTarget.Character:FindFirstChild("HumanoidRootPart")
         if targetPart then
-            local targetVelocity = targetPart.Velocity or Vector3.new(0, 0, 0)
+            local targetVelocity = targetPart.Velocity or Vector3.new(0,0,0)
             local predictionFactor = math.clamp(0.05 + (currentTargetDistance / 2000), 0.02, 0.1)
             local predictedPosition = targetPart.Position + (targetVelocity * predictionFactor)
             Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, predictedPosition), 0.2)
         else
             currentTarget = nil
         end
+    else
+        currentTarget = nil
     end
 end
- 
+
+-- ===== Main loops =====
 RunService.RenderStepped:Connect(function()
+    -- update themeColor (handles rainbow)
+    local newThemeColor = computeThemeColor()
+    if newThemeColor ~= themeColor then
+        themeColor = newThemeColor
+        -- update all highlights color
+        for _, hl in pairs(highlightedPlayers) do
+            if hl and hl.FillColor then
+                pcall(function() hl.FillColor = themeColor end)
+            end
+        end
+    end
+
+    -- update FOV drawing circle to match theme & radius; visible only when aimbotEnabled
+    if FOVCircle then
+        pcall(function()
+            FOVCircle.Position = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
+            FOVCircle.Radius = fov
+            FOVCircle.Color = themeColor
+            FOVCircle.Visible = aimbotEnabled
+        end)
+    end
+
+    -- ensure highlights are created/updated
+    if espEnabled then
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer then
+                if not highlightedPlayers[player] and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                    createHighlight(player)
+                elseif highlightedPlayers[player] then
+                    pcall(function()
+                        highlightedPlayers[player].Enabled = espEnabled
+                        highlightedPlayers[player].FillColor = themeColor
+                    end)
+                end
+            end
+        end
+    else
+        for p, hl in pairs(highlightedPlayers) do
+            if hl then pcall(function() hl.Enabled = false end) end
+        end
+    end
+
+    -- aimbot lock behavior (only when aimbotEnabled and mouse right-button down)
     if aimbotEnabled then
         if UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
-            if not currentTarget then
-                currentTarget = getClosestTarget()
-            end
-            if currentTarget then
-                lockOnTarget()
-            end
+            if not currentTarget then currentTarget = getClosestTarget() end
+            if currentTarget then lockOnTarget() end
         else
             currentTarget = nil
         end
     end
+
+    -- update live distance label (GUI sets label variable)
+    -- (GUI's render connection will read currentTargetDistance variable)
 end)
- 
+
+-- ===== GUI Creation =====
 local function createGUI()
+    -- cleanup old
     if game.CoreGui:FindFirstChild("Aimlock_GUI") then
         game.CoreGui.Aimlock_GUI:Destroy()
     end
- 
+
     local ScreenGui = Instance.new("ScreenGui")
     ScreenGui.Name = "Aimlock_GUI"
     ScreenGui.Parent = game.CoreGui
- 
+    ScreenGui.ResetOnSpawn = false
+
     local Frame = Instance.new("Frame", ScreenGui)
-    Frame.Size = UDim2.new(0, 200, 0, 190)
-    Frame.Position = UDim2.new(1, -220, 0, 50)
-    Frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+    Frame.Name = "MainFrame"
+    Frame.Size = UDim2.new(0, 260, 0, 300)
+    Frame.Position = UDim2.new(1, -280, 0, 80)
+    Frame.BackgroundColor3 = Color3.fromRGB(20,20,20)
     Frame.BorderSizePixel = 2
     Frame.BorderColor3 = themeColor
- 
-    local creditLabel = Instance.new("TextLabel", Frame)
-    creditLabel.Size = UDim2.new(0, 180, 0, 20)
-    creditLabel.Position = UDim2.new(0, 10, 0, 0)
-    creditLabel.BackgroundTransparency = 1
-    creditLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    creditLabel.TextScaled = true
-    creditLabel.Text = "Made By C_mthe3rd"
-    creditLabel.Name = "CreditLabel"
- 
-    -- 🔒 Anti-tamper Check
-    task.spawn(function()
-        while true do
-            if creditLabel.Text ~= "Made By C_mthe3rd" then
-                warn("Credit tampering detected! Disabling script.")
-                aimbotEnabled = false
-                espEnabled = false
-                headAimEnabled = false
-                if ScreenGui then
-                    ScreenGui:Destroy()
-                end
-                break
-            end
-            wait(2)
-        end
-    end)
- 
-    local function createButton(name, position, text, callback)
-        local button = Instance.new("TextButton", Frame)
-        button.Size = UDim2.new(0, 180, 0, 22)
-        button.Position = UDim2.new(0, 10, 0, position)
-        button.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-        button.BorderSizePixel = 2
-        button.BorderColor3 = themeColor
-        button.Text = text
-        button.TextColor3 = Color3.fromRGB(255, 255, 255)
-        button.TextScaled = true
- 
-        button.MouseButton1Click:Connect(function()
-            callback(button)
+    Frame.Active = true
+    Frame.Draggable = false -- we'll handle dragging manually
+
+    -- Title bar
+    local TitleBar = Instance.new("Frame", Frame)
+    TitleBar.Name = "TitleBar"
+    TitleBar.Size = UDim2.new(1, 0, 0, 28)
+    TitleBar.Position = UDim2.new(0,0,0,0)
+    TitleBar.BackgroundTransparency = 1
+
+    local TitleLabel = Instance.new("TextLabel", TitleBar)
+    TitleLabel.Size = UDim2.new(1, -60, 1, 0)
+    TitleLabel.Position = UDim2.new(0, 10, 0, 0)
+    TitleLabel.BackgroundTransparency = 1
+    TitleLabel.Text = "Made By C_mthe3rd"
+    TitleLabel.TextColor3 = Color3.fromRGB(255,255,255)
+    TitleLabel.TextScaled = true
+    TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+    -- Minimizer button
+    local MinimizeBtn = Instance.new("TextButton", TitleBar)
+    MinimizeBtn.Size = UDim2.new(0, 50, 1, -4)
+    MinimizeBtn.Position = UDim2.new(1, -55, 0, 2)
+    MinimizeBtn.Text = "—"
+    MinimizeBtn.TextScaled = true
+    MinimizeBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    MinimizeBtn.BackgroundColor3 = Color3.fromRGB(45,45,45)
+    MinimizeBtn.BorderSizePixel = 1
+    MinimizeBtn.BorderColor3 = themeColor
+    MinimizeBtn.AutoButtonColor = false
+
+    -- Container for controls
+    local Content = Instance.new("Frame", Frame)
+    Content.Name = "Content"
+    Content.Size = UDim2.new(1,0,1,-28)
+    Content.Position = UDim2.new(0,0,0,28)
+    Content.BackgroundTransparency = 1
+
+    -- For rainy theme: raindrop container (inside Frame, behind content)
+    local RainLayer = Instance.new("Frame", Frame)
+    RainLayer.Name = "RainLayer"
+    RainLayer.Size = UDim2.new(1,0,1,0)
+    RainLayer.Position = UDim2.new(0,0,0,0)
+    RainLayer.BackgroundTransparency = 1
+    RainLayer.ZIndex = 0
+
+    -- Buttons table to update borders on theme change
+    local buttons = {}
+
+    -- Helper to create button with tween animation
+    local function createButton(text, y, callback)
+        local btn = Instance.new("TextButton", Content)
+        btn.Size = UDim2.new(0, 220, 0, 26)
+        btn.Position = UDim2.new(0, 20, 0, y)
+        btn.BackgroundColor3 = Color3.fromRGB(45,45,45)
+        btn.BorderSizePixel = 2
+        btn.BorderColor3 = themeColor
+        btn.Text = text
+        btn.TextColor3 = Color3.fromRGB(255,255,255)
+        btn.TextScaled = true
+        btn.AutoButtonColor = false
+
+        -- animation on press
+        btn.MouseButton1Click:Connect(function()
+            -- small scale pop and color tween
+            pcall(function()
+                local tweenInfo = TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+                local up = TweenService:Create(btn, tweenInfo, {Size = UDim2.new(0, 230, 0, 28)})
+                local down = TweenService:Create(btn, tweenInfo, {Size = UDim2.new(0, 220, 0, 26)})
+                up:Play()
+                up.Completed:Wait()
+                down:Play()
+            end)
+            pcall(function() callback(btn) end)
         end)
-        return button
+
+        table.insert(buttons, btn)
+        return btn
     end
- 
-    createButton("Aimlock", 30, "Aimlock: OFF", function(button)
+
+    -- Aimlock button
+    local AimBtn = createButton("Aimlock: OFF", 6, function(btn)
         aimbotEnabled = not aimbotEnabled
-        button.Text = aimbotEnabled and "Aimlock: ON" or "Aimlock: OFF"
+        btn.Text = aimbotEnabled and "Aimlock: ON" or "Aimlock: OFF"
+        -- show/hide FOV circle per request
+        if FOVCircle then pcall(function() FOVCircle.Visible = aimbotEnabled end) end
     end)
- 
-    createButton("Head Aim", 60, "Head Aim: OFF", function(button)
+
+    -- Head Aim
+    local HeadBtn = createButton("Head Aim: OFF", 40, function(btn)
         headAimEnabled = not headAimEnabled
-        button.Text = headAimEnabled and "Head Aim: ON" or "Head Aim: OFF"
+        btn.Text = headAimEnabled and "Head Aim: ON" or "Head Aim: OFF"
     end)
- 
-    createButton("ESP", 90, "ESP: ON", function(button)
+
+    -- ESP Toggle
+    local EspBtn = createButton("ESP: ON", 74, function(btn)
         espEnabled = not espEnabled
-        button.Text = espEnabled and "ESP: ON" or "ESP: OFF"
+        btn.Text = espEnabled and "ESP: ON" or "ESP: OFF"
     end)
- 
-    createButton("Theme Color", 120, "Change Theme", function(button)
-        themeColor = themeColor == Color3.fromRGB(0, 122, 255) and Color3.fromRGB(255, 165, 0) or Color3.fromRGB(0, 122, 255)
+
+    -- Theme Button (cycles 1..4)
+    local ThemeBtn = createButton("Theme: BLUE", 108, function(btn)
+        themeMode = themeMode + 1
+        if themeMode > 4 then themeMode = 1 end
+
+        if themeMode == 1 then btn.Text = "Theme: RED"
+        elseif themeMode == 2 then btn.Text = "Theme: BLUE"
+        elseif themeMode == 3 then btn.Text = "Theme: RAINBOW"
+        elseif themeMode == 4 then btn.Text = "Theme: RAINY" end
+
+        -- update theme color immediately
+        themeColor = computeThemeColor()
+        -- apply border changes
+        for _, b in pairs(buttons) do if b then b.BorderColor3 = themeColor end end
         Frame.BorderColor3 = themeColor
     end)
- 
-    local distanceLabel = Instance.new("TextLabel", Frame)
-    distanceLabel.Size = UDim2.new(0, 180, 0, 20)
-    distanceLabel.Position = UDim2.new(0, 10, 0, 150)
-    distanceLabel.BackgroundTransparency = 1
-    distanceLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    distanceLabel.TextScaled = true
-    distanceLabel.Text = "Distance: N/A"
- 
-    RunService.RenderStepped:Connect(function()
-        distanceLabel.Text = "Distance: " .. tostring(currentTargetDistance) .. "m"
+
+    -- Distance label (below buttons)
+    local DistanceLabel = Instance.new("TextLabel", Content)
+    DistanceLabel.Size = UDim2.new(0, 220, 0, 22)
+    DistanceLabel.Position = UDim2.new(0,20,0,144)
+    DistanceLabel.BackgroundTransparency = 1
+    DistanceLabel.TextColor3 = Color3.fromRGB(255,255,255)
+    DistanceLabel.TextScaled = true
+    DistanceLabel.Text = "Distance: N/A"
+
+    -- ===== FOV Label + Slider =====
+    local FOVLabel = Instance.new("TextLabel", Content)
+    FOVLabel.Size = UDim2.new(0, 220, 0, 20)
+    FOVLabel.Position = UDim2.new(0,20,0,172)
+    FOVLabel.BackgroundTransparency = 1
+    FOVLabel.TextColor3 = themeColor
+    FOVLabel.TextScaled = true
+    FOVLabel.Text = "FOV: " .. tostring(fov)
+
+    local SliderBg = Instance.new("Frame", Content)
+    SliderBg.Size = UDim2.new(0, 220, 0, 18)
+    SliderBg.Position = UDim2.new(0,20,0,196)
+    SliderBg.BackgroundColor3 = Color3.fromRGB(40,40,40)
+    SliderBg.BorderSizePixel = 1
+    SliderBg.BorderColor3 = Color3.fromRGB(30,30,30)
+
+    local SliderFill = Instance.new("Frame", SliderBg)
+    SliderFill.Size = UDim2.new(math.clamp((fov - minFov) / (maxFov - minFov),0,1), 0, 1, 0)
+    SliderFill.Position = UDim2.new(0,0,0,0)
+    SliderFill.BackgroundColor3 = themeColor
+    SliderFill.BorderSizePixel = 0
+
+    local Knob = Instance.new("TextButton", SliderBg)
+    Knob.Size = UDim2.new(0, 14, 1, 0)
+    Knob.AnchorPoint = Vector2.new(0.5, 0.5)
+    Knob.Position = UDim2.new(SliderFill.Size.X.Scale, 0, 0.5, 0)
+    Knob.BackgroundColor3 = Color3.fromRGB(220,220,220)
+    Knob.BorderSizePixel = 0
+    Knob.Text = ""
+    Knob.AutoButtonColor = false
+
+    local dragging = false
+    local function setFOVFromRel(rel)
+        rel = math.clamp(rel, 0, 1)
+        SliderFill.Size = UDim2.new(rel, 0, 1, 0)
+        Knob.Position = UDim2.new(rel, 0, 0.5, 0)
+        fov = math.floor(minFov + rel * (maxFov - minFov))
+        FOVLabel.Text = "FOV: " .. tostring(fov)
+        if FOVCircle then pcall(function() FOVCircle.Radius = fov end) end
+    end
+
+    SliderBg.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            local rel = math.clamp((input.Position.X - SliderBg.AbsolutePosition.X) / SliderBg.AbsoluteSize.X, 0, 1)
+            setFOVFromRel(rel)
+        end
     end)
+    Knob.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = true end
+    end)
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local rel = math.clamp((input.Position.X - SliderBg.AbsolutePosition.X) / SliderBg.AbsoluteSize.X, 0, 1)
+            setFOVFromRel(rel)
+        end
+    end)
+
+    -- ===== Minimizer logic =====
+    local minimized = false
+    local contentChildren = {} -- store normal content children so we can hide/show
+    for _, child in ipairs(Content:GetChildren()) do table.insert(contentChildren, child) end
+
+    MinimizeBtn.MouseButton1Click:Connect(function()
+        minimized = not minimized
+        if minimized then
+            -- hide content with tween
+            for _, child in ipairs(contentChildren) do
+                if child ~= nil then
+                    local t = TweenService:Create(child, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(0,0,0,0), Position = child.Position})
+                    pcall(function() t:Play() end)
+                    pcall(function() child.Visible = false end)
+                end
+            end
+            -- shrink frame
+            TweenService:Create(Frame, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(0,260,0,34)}):Play()
+            MinimizeBtn.Text = "+"
+        else
+            -- restore frame size then show content
+            TweenService:Create(Frame, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(0,260,0,300)}):Play()
+            wait(0.18)
+            for _, child in ipairs(contentChildren) do
+                if child ~= nil then
+                    child.Visible = true
+                    pcall(function()
+                        local t = TweenService:Create(child, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = child.Size, Position = child.Position})
+                        t:Play()
+                    end)
+                end
+            end
+            MinimizeBtn.Text = "—"
+        end
+    end)
+
+    -- ===== Draggable GUI (titlebar drag) =====
+    local draggingGui = false
+    local dragStart = nil
+    local startPos = nil
+
+    TitleBar.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            draggingGui = true
+            dragStart = input.Position
+            startPos = Frame.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    draggingGui = false
+                end
+            end)
+        end
+    end)
+
+    TitleBar.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement and draggingGui and dragStart and startPos then
+            local delta = input.Position - dragStart
+            Frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+
+    -- ===== Rainy theme raindrops =====
+    local activeDrops = {}
+    local function spawnRaindrop()
+        if not rainyEnabled then return end
+        -- create small thin frame line as raindrop
+        local drop = Instance.new("Frame", RainLayer)
+        drop.Size = UDim2.new(0,2,0,10)
+        drop.Position = UDim2.new(math.random() , 0, 0, -20)
+        drop.BackgroundColor3 = Color3.fromRGB(200,220,255)
+        drop.BorderSizePixel = 0
+        drop.ZIndex = 0
+        table.insert(activeDrops, drop)
+        -- animate downward then destroy
+        local targetY = Frame.AbsoluteSize.Y + 30
+        local tween = TweenService:Create(drop, TweenInfo.new(1.2 + math.random()*0.8, Enum.EasingStyle.Linear), {Position = UDim2.new(drop.Position.X.Scale, 0, 0, targetY)})
+        tween:Play()
+        tween.Completed:Connect(function()
+            pcall(function() drop:Destroy() end)
+        end)
+    end
+
+    -- spawn drops periodically when rainyEnabled true
+    spawn(function()
+        while true do
+            if rainyEnabled then
+                spawnRaindrop()
+                wait(0.08 + math.random()*0.12)
+            else
+                wait(0.25)
+            end
+        end
+    end)
+
+    -- ===== Update loop (GUI) =====
+    RunService.RenderStepped:Connect(function()
+        -- update theme color & border fills
+        themeColor = computeThemeColor()
+        Frame.BorderColor3 = themeColor
+        for _, b in pairs(buttons) do if b then b.BorderColor3 = themeColor end end
+        FOVLabel.TextColor3 = themeColor
+        SliderFill.BackgroundColor3 = themeColor
+
+        -- slider knob update in case set externally
+        local rel = math.clamp((fov - minFov) / (maxFov - minFov), 0, 1)
+        SliderFill.Size = UDim2.new(rel, 0, 1, 0)
+        Knob.Position = UDim2.new(rel, 0, 0.5, 0)
+        FOVLabel.Text = "FOV: " .. tostring(fov)
+
+        -- update distance label
+        local closest = getClosestTarget()
+        if closest and closest ~= LocalPlayer and closest.Character and closest.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            local dist = (LocalPlayer.Character.HumanoidRootPart.Position - closest.Character.HumanoidRootPart.Position).Magnitude
+            currentTargetDistance = math.floor(dist)
+        else
+            currentTargetDistance = "N/A"
+        end
+        DistanceLabel.Text = "Distance: " .. tostring(currentTargetDistance) .. "m"
+
+        -- update rainyEnabled state based on themeMode
+        rainyEnabled = (themeMode == 4)
+
+        -- clean old raindrops occasionally
+        for i=#activeDrops,1,-1 do
+            local d = activeDrops[i]
+            if not d or not d.Parent then table.remove(activeDrops, i) end
+        end
+    end)
+
+    -- initial border color setup
+    Frame.BorderColor3 = themeColor
+    for _, b in pairs(buttons) do if b then b.BorderColor3 = themeColor end end
 end
- 
+
+-- create GUI
 createGUI()
+
+-- cleanup highlights when players leave
+Players.PlayerRemoving:Connect(function(player)
+    removeHighlight(player)
+end)
