@@ -1,137 +1,329 @@
-local teamCheck = false
-local fov = 90
-local smoothing = 0.02
-local predictionFactor = 0.08  -- Adjust this factor to improve prediction accuracy
-local highlightEnabled = false  -- Variable to enable or disable target highlighting. Change to False if using an ESP script.
-local lockPart = "HumanoidRootPart"  -- Choose what part it locks onto. Ex. HumanoidRootPart or Head
- 
-local Toggle = false  -- Enable or disable toggle mode
-local ToggleKey = Enum.KeyCode.E  -- Choose the key for toggling aimbot lock
- 
-local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
-local StarterGui = game:GetService("StarterGui")
+print("Hello, World!")
 local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer or Players:GetPropertyChangedSignal("LocalPlayer"):Wait()
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local Humanoid = Character:WaitForChild("Humanoid")
+local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
+local Mouse = LocalPlayer:GetMouse()
+local RunService = game:GetService("RunService")
+local UIS = game:GetService("UserInputService")
+local Camera = workspace.CurrentCamera
+local CurrentTarget = nil
  
-StarterGui:SetCore("SendNotification", {
-    Title = "Universal Aimbot";
-    Text = "made by bran-bon";
-    Duration = 5;
+local Connections = {
+	CharacterAdded = {}
+}
+ 
+table.insert(Connections.CharacterAdded, LocalPlayer.CharacterAdded:Connect(function(Char)
+	Character = Char
+	Humanoid = Char:WaitForChild("Humanoid")
+	HumanoidRootPart = Char:WaitForChild("HumanoidRootPart")
+end))
+ 
+local Aimbot = {}; do
+	local Loops = {RenderStepped = {}, Heartbeat = {}, Stepped = {}}
+	function Aimbot:BindToRenderStepped(id, callback)
+		if not Loops.RenderStepped[id] then
+			Loops.RenderStepped[id] = RunService.RenderStepped:Connect(callback)
+		end
+	end
+	function Aimbot:UnbindFromRenderStepped(id)
+		if Loops.RenderStepped[id] then
+			Loops.RenderStepped[id]:Disconnect()
+			Loops.RenderStepped[id] = nil
+		end
+	end
+	function Aimbot:StoreCurrentTarget(Player)
+		CurrentTarget = Player
+	end
+	function Aimbot:IfHolding()
+		return UIS:IsMouseButtonPressed(Enum.UserInputType.MouseButton2)
+	end
+    function Aimbot:DistanceCheck(Player, Distance)
+        shared.DistanceCheck = shared.DistanceCheck or true
+        shared.Distance = shared.Distance or 100
+ 
+        if Distance and shared.DistanceCheck then
+            return (Player.Character.HumanoidRootPart.Position - HumanoidRootPart.Position).Magnitude <= Distance
+        else
+            return true
+        end
+    end
+    function Aimbot:TeamCheck(Player, Toggle)
+		if Toggle then
+			return Player.Team ~= LocalPlayer.Team
+		else
+			return true
+		end
+	end
+	function Aimbot:GetClosestPlayerToMouse()
+		local ClosestPlayer = nil
+		local ClosestPlayerDistance = math.huge
+ 
+		for _, Player in next, Players:GetPlayers() do
+			if Player ~= LocalPlayer and Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then
+				local ScreenPoint = Camera:WorldToViewportPoint(Player.Character.HumanoidRootPart.Position)
+				local MousePoint = Vector2.new(Mouse.X, Mouse.Y)
+				local Distance = (MousePoint - Vector2.new(ScreenPoint.X, ScreenPoint.Y)).Magnitude
+                local _, OnScreen = Camera:WorldToViewportPoint(Player.Character.HumanoidRootPart.Position)
+ 
+				if Aimbot:DistanceCheck(Player, shared.Distance) and OnScreen and Distance < ClosestPlayerDistance then
+					ClosestPlayer = Player
+					ClosestPlayerDistance = Distance
+				end
+			end
+		end
+ 
+		return ClosestPlayer
+	end
+    function Aimbot:GetClosestFromDistance()
+        local ClosestPlayer = nil
+        local ClosestPlayerDistance = math.huge
+ 
+        for _, Player in next, Players:GetPlayers() do
+            if Player ~= LocalPlayer and Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then
+                local Distance = (Player.Character.HumanoidRootPart.Position - HumanoidRootPart.Position).Magnitude
+ 
+                if Aimbot:DistanceCheck(Player, shared.Distance) and Distance < ClosestPlayerDistance then
+                    ClosestPlayer = Player
+                    ClosestPlayerDistance = Distance
+                end
+            end
+        end
+ 
+        return ClosestPlayer
+    end
+    function Aimbot:DoMethod()
+        shared.Method = shared.Method or "Closest To Mouse"
+ 
+        if shared.Method == "Closest To Mouse" then
+            return self:GetClosestPlayerToMouse()
+        elseif shared.Method == "Distance" then
+            return self:GetClosestFromDistance()
+        end
+    end
+	Aimbot:StoreCurrentTarget(Aimbot:DoMethod())
+	function Aimbot:Update()
+		getgenv().Smoothness = shared.Smoothness or .25
+		getgenv().TeamCheck = shared.TeamCheck or false
+        getgenv().SelectedView = shared.SelectedView or "First Person"
+        getgenv().TargetPart = shared.TargetPart or "Head"
+ 
+		if CurrentTarget and CurrentTarget.Character then
+			local Vector = Camera:WorldToViewportPoint(CurrentTarget.Character:WaitForChild(TargetPart).Position)
+ 
+			if not self:IfHolding() then
+				self:StoreCurrentTarget(self:DoMethod())
+			elseif self:IfHolding() and self:TeamCheck(CurrentTarget, TeamCheck) then
+				if SelectedView == "First Person" and UIS.MouseBehavior == Enum.MouseBehavior.LockCenter then
+					Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, CurrentTarget.Character:WaitForChild(TargetPart).Position), smooSmoothnessthness)
+				elseif SelectedView == "Third Person" and UIS.MouseBehavior == Enum.MouseBehavior.Default then
+					mousemoverel((Vector.X - Mouse.X) / 2 * Smoothness, (Vector.Y - Mouse.Y - 35) / 2 * Smoothness)
+                elseif SelectedView == "Auto" then
+                    if UIS.MouseBehavior == Enum.MouseBehavior.LockCenter then
+                        Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, CurrentTarget.Character:WaitForChild(TargetPart).Position), Smoothness)
+                    elseif UIS.MouseBehavior == Enum.MouseBehavior.Default then
+                        mousemoverel((Vector.X - Mouse.X) / 2 * Smoothness, (Vector.Y - Mouse.Y - 35) / 2 * Smoothness)
+                    end
+				end
+			end
+		else
+			self:StoreCurrentTarget(self:DoMethod())
+		end
+	end
+	function Aimbot:Toggle(boolean)
+		if boolean then
+			self:BindToRenderStepped("Aimbot", function()
+				self:Update()
+			end)
+		else
+			self:UnbindFromRenderStepped("Aimbot")
+		end
+	end
+end
+local Esp = {}; do
+    Instance.new("ScreenGui",game.CoreGui).Name = "Kaoru"
+    local ChamsFolder = Instance.new("Folder")
+    ChamsFolder.Name = "ChamsFolder"
+    for _,v in next, game.CoreGui:GetChildren() do
+        if v:IsA'ScreenGui' and v.Name == 'Kaoru' then
+            ChamsFolder.Parent = v
+        end
+    end
+    Players.PlayerRemoving:Connect(function(plr)
+        if ChamsFolder:FindFirstChild(plr.Name) then
+            ChamsFolder[plr.Name]:Destroy()
+        end
+    end)
+    local Loops = {RenderStepped = {}, Heartbeat = {}, Stepped = {}}
+    function Esp:BindToRenderStepped(id, callback)
+        if not Loops.RenderStepped[id] then
+            Loops.RenderStepped[id] = RunService.RenderStepped:Connect(callback)
+        end
+    end
+    function Esp:UnbindFromRenderStepped(id)
+        if Loops.RenderStepped[id] then
+            Loops.RenderStepped[id]:Disconnect()
+            Loops.RenderStepped[id] = nil
+        end
+    end
+    function Esp:TeamCheck(Player, Toggle)
+        if Toggle then
+            return Player.Team ~= LocalPlayer.Team
+        else
+            return true
+        end
+    end
+    function Esp:Update()
+        for _, Player in next, Players:GetChildren() do
+            if ChamsFolder:FindFirstChild(Player.Name) then
+                Chams = ChamsFolder[Player.Name]
+                Chams.Enabled = false
+                Chams.FillColor = Color3.fromRGB(255, 255, 255)
+                Chams.OutlineColor = Color3.fromHSV(tick()%5/5,1,1)
+            end
+            if Player ~= LocalPlayer and Player.Character then
+                if ChamsFolder:FindFirstChild(Player.Name) == nil then
+                    local chamfolder = Instance.new("Highlight")
+                    chamfolder.Name = Player.Name
+                    chamfolder.Parent = ChamsFolder
+                    Chams = chamfolder
+                end
+                Chams.Enabled = true
+                Chams.Adornee = Player.Character
+                Chams.OutlineTransparency = 0
+                Chams.DepthMode = Enum.HighlightDepthMode[(true and "AlwaysOnTop" or "Occluded")]
+                Chams.FillTransparency = 1
+            end
+        end
+    end
+    function Esp:Toggle(boolean)
+        if boolean then
+            self:BindToRenderStepped("Esp", function()
+                self:Update()
+            end)
+        else
+            self:UnbindFromRenderStepped("Esp")
+            ChamsFolder:ClearAllChildren()
+        end
+    end
+end
+ 
+local Rayfield = loadstring(game:HttpGet('https://raw.githubusercontent.com/shlexware/Rayfield/main/source'))()
+local Window = Rayfield:CreateWindow({
+	Name = "FPS Universal",
+	LoadingTitle = "FPS Universal",
+	LoadingSubtitle = "By: Kaoru~#6438",
+	ConfigurationSaving = {
+		Enabled = true,
+		FolderName = "FPS-Universal-Kaoru",
+		FileName = "reddyhub"
+	},
 })
  
-local FOVring = Drawing.new("Circle")
-FOVring.Visible = true
-FOVring.Thickness = 1
-FOVring.Radius = fov
-FOVring.Transparency = 0.8
-FOVring.Color = Color3.fromRGB(255, 128, 128)
-FOVring.Position = workspace.CurrentCamera.ViewportSize / 2
+local Main = Window:CreateTab('Main')
+Main:CreateSection("Aimbot")
  
-local currentTarget = nil
-local aimbotEnabled = true
-local toggleState = false  -- Variable to keep track of toggle state
-local debounce = false  -- Debounce variable
+Main:CreateToggle({
+    Name = "Aimbot",
+    CurrentValue = false,
+    Callback = function(AimAssistToggle)
+        Aimbot:Toggle(AimAssistToggle)
+    end,
+})
  
-local function getClosest(cframe)
-    local ray = Ray.new(cframe.Position, cframe.LookVector).Unit
-    local target = nil
-    local mag = math.huge
-    local screenCenter = workspace.CurrentCamera.ViewportSize / 2
+Main:CreateSection("Aimbot Settings")
  
-    for i, v in pairs(Players:GetPlayers()) do
-        if v.Character and v.Character:FindFirstChild(lockPart) and v.Character:FindFirstChild("Humanoid") and v.Character:FindFirstChild("HumanoidRootPart") and v ~= Players.LocalPlayer and (v.Team ~= Players.LocalPlayer.Team or (not teamCheck)) then
-            local screenPoint, onScreen = workspace.CurrentCamera:WorldToViewportPoint(v.Character[lockPart].Position)
-            local distanceFromCenter = (Vector2.new(screenPoint.X, screenPoint.Y) - screenCenter).Magnitude
+Main:CreateDropdown({
+    Name = "Method",
+    Options = {"Closest To Mouse", "Distance"},
+    CurrentOption = "Closest To Mouse",
+    Callback = function(Method)
+        shared.Method = Method
+    end,
+})
  
-            if onScreen and distanceFromCenter <= fov then
-                local magBuf = (v.Character[lockPart].Position - ray:ClosestPoint(v.Character[lockPart].Position)).Magnitude
- 
-                if magBuf < mag then
-                    mag = magBuf
-                    target = v
-                end
-            end
+Main:CreateDropdown({
+    Name = "Target Part",
+    Options = {
+        "Head",
+        "Torso",
+        "Right Arm",
+        "Left Arm",
+        "Right Leg",
+        "Left Leg"
+    },
+    CurrentOption = "Head",
+    Callback = function(TargetPart)
+        if TargetPart == "Torso" then
+            shared.TargetPart = "HumanoidRootPart"
+        elseif TargetPart ~= "Torso" then
+            shared.TargetPart = TargetPart
         end
-    end
+    end,
+})
  
-    return target
-end
+Main:CreateDropdown({
+    Name = "Selected View",
+    Options = {"First Person", "Third Person", "Auto"},
+    CurrentOption = "First Person",
+    Callback = function(SelectedView)
+        shared.SelectedView = SelectedView
+    end,
+})
  
-local function updateFOVRing()
-    FOVring.Position = workspace.CurrentCamera.ViewportSize / 2
-end
+Main:CreateSlider({
+    Name = "Smoothness",
+    Range = {0, 1},
+    Increment = .01,
+    CurrentValue = .25,
+    Callback = function(Smoothness)
+        shared.Smoothness = Smoothness
+    end,
+})
  
-local function highlightTarget(target)
-    if highlightEnabled and target and target.Character then
-        local highlight = Instance.new("Highlight")
-        highlight.Adornee = target.Character
-        highlight.FillColor = Color3.fromRGB(255, 128, 128)
-        highlight.OutlineColor = Color3.fromRGB(255, 0, 0)
-        highlight.Parent = target.Character
-    end
-end
+Main:CreateToggle({
+    Name = "Distance Check",
+    CurrentValue = true,
+    Callback = function(DistanceCheckToggle)
+        shared.DistanceCheck = DistanceCheckToggle
+    end,
+})
  
-local function removeHighlight(target)
-    if highlightEnabled and target and target.Character and target.Character:FindFirstChildOfClass("Highlight") then
-        target.Character:FindFirstChildOfClass("Highlight"):Destroy()
-    end
-end
+Main:CreateSlider({
+    Name = "Distance",
+    Range = {0, 1000},
+    Increment = 1,
+    CurrentValue = 100,
+    Callback = function(Distance)
+        shared.Distance = Distance
+    end,
+})
  
-local function predictPosition(target)
-    if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
-        local velocity = target.Character.HumanoidRootPart.Velocity
-        local position = target.Character[lockPart].Position
-        local predictedPosition = position + (velocity * predictionFactor)
-        return predictedPosition
-    end
-    return nil
-end
+Main:CreateToggle({
+    Name = "Team Check",
+    CurrentValue = false,
+    Callback = function(TeamCheckToggle)
+        shared.TeamCheck = TeamCheckToggle
+    end,
+})
  
-local function handleToggle()
-    if debounce then return end
-    debounce = true
-    toggleState = not toggleState
-    wait(0.3)  -- Debounce time to prevent multiple toggles
-    debounce = false
-end
+Main:CreateSection("Esp")
  
-loop = RunService.RenderStepped:Connect(function()
-    if aimbotEnabled then
-        updateFOVRing()
+Main:CreateToggle({
+    Name = "Esp",
+    CurrentValue = false,
+    Callback = function(EspToggle)
+        Esp:Toggle(EspToggle)
+    end,
+})
  
-        local localPlayer = Players.LocalPlayer.Character
-        local cam = workspace.CurrentCamera
-        local screenCenter = workspace.CurrentCamera.ViewportSize / 2
+Main:CreateSection("Esp Settings")
  
-        if Toggle then
-            if UserInputService:IsKeyDown(ToggleKey) then
-                handleToggle()
-            end
-        else
-            toggleState = UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2)
-        end
- 
-        if toggleState then
-            if not currentTarget then
-                currentTarget = getClosest(cam.CFrame)
-                highlightTarget(currentTarget)  -- Highlight the new target if enabled
-            end
- 
-            if currentTarget and currentTarget.Character and currentTarget.Character:FindFirstChild(lockPart) then
-                local predictedPosition = predictPosition(currentTarget)
-                if predictedPosition then
-                    workspace.CurrentCamera.CFrame = workspace.CurrentCamera.CFrame:Lerp(CFrame.new(cam.CFrame.Position, predictedPosition), smoothing)
-                end
-                FOVring.Color = Color3.fromRGB(0, 255, 0)  -- Change FOV ring color to green when locked onto a target
-            else
-                FOVring.Color = Color3.fromRGB(255, 128, 128)  -- Revert FOV ring color to original when not locked onto a target
-            end
-        else
-            if currentTarget and highlightEnabled then
-                removeHighlight(currentTarget)  -- Remove highlight from the old target
-            end
-            currentTarget = nil
-            FOVring.Color = Color3.fromRGB(255, 128, 128)  -- Revert FOV ring color to original when not locked onto a target
-        end
-    end
-end)
+Main:CreateToggle({
+    Name = "Team Check",
+    CurrentValue = false,
+    Callback = function(ESPTeamCheck)
+        shared.ESPTeamCheck = ESPTeamCheck
+    end,
+})
