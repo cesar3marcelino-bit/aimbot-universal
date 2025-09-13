@@ -1,7 +1,6 @@
 --[[ 
 Script created by C_mthe3rd gaming
 discord for contact: iliketrains9999. (dot at the end)
-Please do not re-upload or redistribute without credit.
 Final merged script: reliable ESP, draggable GUI, minimizer above UI,
 theme sync, clouds+rain with splashes, FOV circle tied to Aimlock, sliders, tweens kept.
 ]] 
@@ -193,13 +192,12 @@ local function lockOnTarget()
     end
 end
 
--- ===== Main render loop =====
+-- ===== Main render loop for ESP & Aimbot =====
 RunService.RenderStepped:Connect(function()
-    -- update theme color (handles rainbow)
+    -- Update theme color (handles rainbow)
     local newTheme = computeThemeColor()
     if newTheme ~= themeColor then
         themeColor = newTheme
-        -- update highlights
         for _, hl in pairs(highlightedPlayers) do
             if hl and typeof(hl) == "Instance" then
                 pcall(function() hl.FillColor = themeColor; hl.OutlineColor = themeColor end)
@@ -207,7 +205,7 @@ RunService.RenderStepped:Connect(function()
         end
     end
 
-    -- update FOV drawing circle
+    -- Update FOV drawing circle
     if FOVCircle then
         pcall(function()
             FOVCircle.Position = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
@@ -217,7 +215,7 @@ RunService.RenderStepped:Connect(function()
         end)
     end
 
-    -- ensure highlights exist/are updated
+    -- Ensure highlights exist / are updated
     if espEnabled then
         for _, player in pairs(Players:GetPlayers()) do
             if player ~= LocalPlayer then
@@ -238,7 +236,7 @@ RunService.RenderStepped:Connect(function()
         end
     end
 
-    -- aimbot behavior
+    -- Aimbot behavior
     if aimbotEnabled then
         if UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
             if not currentTarget then currentTarget = getClosestTarget() end
@@ -260,7 +258,7 @@ local function createGUI()
     local Frame = Instance.new("Frame", ScreenGui)
     Frame.Name = "MainFrame"
     Frame.Size = UDim2.new(0, 260, 0, 300)
-    Frame.Position = UDim2.new(1, -280, 0, 80)
+    Frame.Position = UDim2.new(0.5, -130, 0.3, -150) -- Centered better
     Frame.BackgroundColor3 = Color3.fromRGB(20,20,20)
     Frame.BorderSizePixel = 2
     Frame.BorderColor3 = themeColor
@@ -316,15 +314,15 @@ local function createGUI()
     TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
     TitleLabel.ZIndex = 3
 
-    -- Credits under title
-    local CreditsLabel = Instance.new("TextLabel", TitleBar)
+    -- Credits under title (moved correctly)
+    local CreditsLabel = Instance.new("TextLabel", Frame)
     CreditsLabel.Size = UDim2.new(1, -10, 0, 16)
-    CreditsLabel.Position = UDim2.new(0, 10, 1, 0)
+    CreditsLabel.Position = UDim2.new(0, 10, 0, 4)
     CreditsLabel.BackgroundTransparency = 1
     CreditsLabel.Text = "Script By C_mthe3rd"
     CreditsLabel.TextColor3 = Color3.fromRGB(180,180,180)
     CreditsLabel.TextScaled = true
-    CreditsLabel.TextXAlignment = Enum.TextXAlignment.Left
+    CreditsLabel.TextXAlignment = Enum.TextXAlignment.Right
     CreditsLabel.Font = Enum.Font.SourceSans
     CreditsLabel.TextSize = 14
     CreditsLabel.ZIndex = 3
@@ -359,9 +357,7 @@ local function createGUI()
     local AimBtn = createButton("Aimlock: OFF", 6, function(btn)
         aimbotEnabled = not aimbotEnabled
         btn.Text = aimbotEnabled and "Aimlock: ON" or "Aimlock: OFF"
-        if FOVCircle then
-            pcall(function() FOVCircle.Visible = aimbotEnabled end)
-        end
+        if FOVCircle then pcall(function() FOVCircle.Visible = aimbotEnabled end) end
     end)
 
     -- Head aim toggle
@@ -376,7 +372,7 @@ local function createGUI()
         btn.Text = espEnabled and "ESP: ON" or "ESP: OFF"
     end)
 
-      -- Theme selector button
+    -- Theme selector button
     local ThemeBtn = createButton("Theme: BLUE", 108, function(btn)
         themeMode = themeMode + 1
         if themeMode > 4 then themeMode = 1 end
@@ -384,13 +380,12 @@ local function createGUI()
         elseif themeMode == 2 then btn.Text = "Theme: BLUE"
         elseif themeMode == 3 then btn.Text = "Theme: RAINBOW"
         elseif themeMode == 4 then btn.Text = "Theme: RAINY" end
-
         themeColor = computeThemeColor()
         Frame.BorderColor3 = themeColor
         for _, b in pairs(buttons) do if b then b.BorderColor3 = themeColor end end
     end)
 
-    -- Distance label
+       -- Distance label
     local DistanceLabel = Instance.new("TextLabel", Content)
     DistanceLabel.Size = UDim2.new(0, 220, 0, 22)
     DistanceLabel.Position = UDim2.new(0,20,0,144)
@@ -465,9 +460,10 @@ local function createGUI()
         end
     end)
 
-    -- ===== Minimizer =====
-    local MinimizeBtn = Instance.new("TextButton", ScreenGui)
-    MinimizeBtn.Size = UDim2.new(0,28,0,20)
+    -- ===== Minimizer button =====
+    local MinimizeBtn = Instance.new("TextButton", Frame)
+    MinimizeBtn.Size = UDim2.new(0,28,0,28)
+    MinimizeBtn.Position = UDim2.new(1, -32, 0, 0) -- top-right corner
     MinimizeBtn.BackgroundColor3 = Color3.fromRGB(45,45,45)
     MinimizeBtn.BorderSizePixel = 1
     MinimizeBtn.BorderColor3 = themeColor
