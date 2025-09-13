@@ -4,7 +4,7 @@ discord for contact: iliketrains9999. (dot at the end)
 Please do not re-upload or redistribute without credit.
 Final merged script: reliable ESP, draggable GUI, minimizer above UI,
 theme sync, clouds+rain with splashes, FOV circle tied to Aimlock, sliders, tweens kept.
-]]
+]] 
 
 -- ===== Settings =====
 local teamCheck = false
@@ -355,7 +355,7 @@ local function createGUI()
         return btn
     end
 
-  -- Aimlock button
+    -- Aimlock button
     local AimBtn = createButton("Aimlock: OFF", 6, function(btn)
         aimbotEnabled = not aimbotEnabled
         btn.Text = aimbotEnabled and "Aimlock: ON" or "Aimlock: OFF"
@@ -376,7 +376,7 @@ local function createGUI()
         btn.Text = espEnabled and "ESP: ON" or "ESP: OFF"
     end)
 
-    -- Theme selector button
+      -- Theme selector button
     local ThemeBtn = createButton("Theme: BLUE", 108, function(btn)
         themeMode = themeMode + 1
         if themeMode > 4 then themeMode = 1 end
