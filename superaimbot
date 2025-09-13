@@ -589,4 +589,43 @@ local function createGUI()
     end)
 end
 
+-- Title bar (transparent)
+local TitleBar = Instance.new("Frame", Frame)
+TitleBar.Size = UDim2.new(1,0,0,28)
+TitleBar.Position = UDim2.new(0,0,0,0)
+TitleBar.BackgroundTransparency = 1
+TitleBar.ZIndex = 3
+
+local TitleLabel = Instance.new("TextLabel", TitleBar)
+TitleLabel.Size = UDim2.new(1, -60, 1, 0)
+TitleLabel.Position = UDim2.new(0, 10, 0, 0)
+TitleLabel.BackgroundTransparency = 1
+TitleLabel.Text = "Universal Aimbot v2" -- updated title
+TitleLabel.TextColor3 = Color3.fromRGB(255,255,255)
+TitleLabel.TextScaled = true
+TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+TitleLabel.ZIndex = 3
+
+-- Distance label (live update)
+local DistanceLabel = Instance.new("TextLabel", Content)
+DistanceLabel.Size = UDim2.new(0, 220, 0, 22)
+DistanceLabel.Position = UDim2.new(0,20,0,144)
+DistanceLabel.BackgroundTransparency = 1
+DistanceLabel.TextColor3 = Color3.fromRGB(255,255,255)
+DistanceLabel.TextScaled = true
+DistanceLabel.Text = "Distance: N/A"
+DistanceLabel.ZIndex = 4
+
+-- Live update distance
+RunService.RenderStepped:Connect(function()
+    local closest = getClosestTarget()
+    if closest and closest ~= LocalPlayer and closest.Character and findRootPart(closest.Character) and LocalPlayer.Character and findRootPart(LocalPlayer.Character) then
+        local dist = (findRootPart(LocalPlayer.Character).Position - findRootPart(closest.Character).Position).Magnitude
+        currentTargetDistance = math.floor(dist)
+    else
+        currentTargetDistance = "N/A"
+    end
+    DistanceLabel.Text = "Distance: " .. tostring(currentTargetDistance) .. "m"
+end)
+
 createGUI()
