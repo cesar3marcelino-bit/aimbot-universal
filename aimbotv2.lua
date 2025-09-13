@@ -1,14 +1,13 @@
 --[[ 
-Universal Aimbot v5 – Part 1: GUI, Toggles & Theme (Fixed)
+Universal Aimbot v5 – Part 1: GUI, Toggles & Theme
 Author: C_mthe3rd Gaming
-]]
+]] 
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local CoreGui = game:GetService("CoreGui")
 local Camera = workspace.CurrentCamera
-
 local LocalPlayer = Players.LocalPlayer
 
 -- Clean old GUI
@@ -16,14 +15,14 @@ if CoreGui:FindFirstChild("UniversalAimbot_GUI") then
     pcall(function() CoreGui:FindFirstChild("UniversalAimbot_GUI"):Destroy() end)
 end
 
--- Settings
+-- === Settings ===
 local aimbotEnabled, headAimEnabled, espEnabled = false, false, true
 local fov = 120
 local minFov, maxFov = 50, 500
 local themeNames = {"Red","Blue","Orange","Green","Rainbow"}
 local currentThemeIndex = 2
 
--- Theme helper
+-- === Theme helper ===
 local function themeColorNow()
     local name = themeNames[currentThemeIndex] or "Blue"
     if name == "Rainbow" then
@@ -38,7 +37,7 @@ local function themeColorNow()
     return map[name] or Color3.fromRGB(0,122,255)
 end
 
--- Main GUI
+-- === Main GUI ===
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "UniversalAimbot_GUI"
 ScreenGui.IgnoreGuiInset = true
@@ -126,54 +125,54 @@ TitleBar.InputChanged:Connect(function(input)
     end
 end)
 
--- Toggle button helper
+-- === Helper: Toggle Button (Maximized) ===
 local function makeToggle(parent, text, y, initial)
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0,200,0,40)
+    btn.Size = UDim2.new(1,-24,0,50)  -- full width minus margin
     btn.Position = UDim2.new(0,12,0,y)
     btn.BackgroundColor3 = Color3.fromRGB(45,45,45)
     btn.BorderSizePixel = 2
     btn.BorderColor3 = themeColorNow()
     btn.Text = text..": "..(initial and "On" or "Off")
     btn.Font = Enum.Font.SourceSansBold
-    btn.TextSize = 18
+    btn.TextSize = 20
     btn.TextColor3 = Color3.fromRGB(255,255,255)
     btn.Parent = parent
     return btn
 end
 
--- Theme button helper
+-- === Theme Button (Maximized) ===
 local function makeThemeButton(parent, y)
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0,200,0,40)
+    btn.Size = UDim2.new(1,-24,0,50)
     btn.Position = UDim2.new(0,12,0,y)
     btn.BackgroundColor3 = Color3.fromRGB(45,45,45)
     btn.BorderSizePixel = 2
     btn.BorderColor3 = themeColorNow()
     btn.Text = "Theme: "..themeNames[currentThemeIndex]
     btn.Font = Enum.Font.SourceSansBold
-    btn.TextSize = 18
+    btn.TextSize = 20
     btn.TextColor3 = Color3.fromRGB(255,255,255)
     btn.Parent = parent
     return btn
 end
 
--- FOV slider
+-- === FOV Slider (Maximized) ===
 local function makeSlider(parent,labelText,y,minVal,maxVal,initialVal)
     local lbl = Instance.new("TextLabel")
-    lbl.Size = UDim2.new(0,260,0,20)
+    lbl.Size = UDim2.new(1,-24,0,24)
     lbl.Position = UDim2.new(0,12,0,y)
     lbl.BackgroundTransparency = 1
     lbl.Text = labelText..": "..tostring(math.floor(initialVal))
     lbl.Font = Enum.Font.SourceSansBold
-    lbl.TextSize = 16
+    lbl.TextSize = 18
     lbl.TextColor3 = Color3.fromRGB(255,255,255)
     lbl.TextXAlignment = Enum.TextXAlignment.Left
     lbl.Parent = parent
 
     local bar = Instance.new("Frame")
-    bar.Size = UDim2.new(0,300,0,18)
-    bar.Position = UDim2.new(0,12,0,y+24)
+    bar.Size = UDim2.new(1,-24,0,20)
+    bar.Position = UDim2.new(0,12,0,y+28)
     bar.BackgroundColor3 = Color3.fromRGB(42,42,42)
     bar.BorderSizePixel = 2
     bar.BorderColor3 = themeColorNow()
@@ -226,27 +225,24 @@ end
 
 -- Create buttons and slider
 local ESPBtn = makeToggle(Content,"ESP",12,true)
-local AimBtn = makeToggle(Content,"Aimlock",70,false)
-local HeadBtn = makeToggle(Content,"Head Aim",128,false)
-local ThemeBtn = makeThemeButton(Content,186)
-local FOVSlider = makeSlider(Content,"FOV",244,50,500,fov)
+local AimBtn = makeToggle(Content,"Aimlock",72,false)
+local HeadBtn = makeToggle(Content,"Head Aim",132,false)
+local ThemeBtn = makeThemeButton(Content,192)
+local FOVSlider = makeSlider(Content,"FOV",252,50,500,fov)
 
 -- Button functionality
 ESPBtn.MouseButton1Click:Connect(function()
     espEnabled = not espEnabled
     ESPBtn.Text = "ESP: "..(espEnabled and "On" or "Off")
 end)
-
 AimBtn.MouseButton1Click:Connect(function()
     aimbotEnabled = not aimbotEnabled
     AimBtn.Text = "Aimlock: "..(aimbotEnabled and "On" or "Off")
 end)
-
 HeadBtn.MouseButton1Click:Connect(function()
     headAimEnabled = not headAimEnabled
     HeadBtn.Text = "Head Aim: "..(headAimEnabled and "On" or "Off")
 end)
-
 ThemeBtn.MouseButton1Click:Connect(function()
     currentThemeIndex = currentThemeIndex + 1
     if currentThemeIndex > #themeNames then currentThemeIndex = 1 end
@@ -258,15 +254,16 @@ local minimized=false
 MinimizeBtn.MouseButton1Click:Connect(function()
     minimized = not minimized
     Content.Visible = not minimized
-    Credits.Visible = not minimized
     if minimized then
         Frame.Size = UDim2.new(0,400,0,36)
+        Credits.Position = UDim2.new(0,10,0,36)
     else
         Frame.Size = UDim2.new(0,400,0,480)
+        Credits.Position = UDim2.new(0,10,1,-28)
     end
 end)
 
--- Dynamic outline update (including rainbow)
+-- Update rainbow theme dynamically
 RunService.RenderStepped:Connect(function()
     local color = themeColorNow()
     Frame.BorderColor3 = color
@@ -280,9 +277,9 @@ RunService.RenderStepped:Connect(function()
 end)
 
 --[[ 
-Universal Aimbot v5 – Part 2: ESP, Healthbar & Aimlock (Dynamic + Rainbow)
+Universal Aimbot v5 – Part 2: ESP, Healthbar & Aimlock
 Author: C_mthe3rd Gaming
-]]
+]] 
 
 local highlightedPlayers, nameLabels, healthLabels, healthBars, distanceLabels = {}, {}, {}, {}, {}
 local aiming, currentTarget = false, nil
@@ -302,16 +299,55 @@ local function findRootPart(character)
     return character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso")
 end
 
--- Setup ESP for a player
+-- Helper: simple prediction
+local function getPredictedPosition(part)
+    if not part then return Vector3.new() end
+    local vel = part.Velocity or Vector3.new()
+    return part.Position + vel * 0.1
+end
+
+-- Lock-on target
+local function lockOnTarget(target)
+    if not target or not target.Character then return end
+    local part = headAimEnabled and target.Character:FindFirstChild("Head") or findRootPart(target.Character)
+    if part then
+        local predicted = getPredictedPosition(part)
+        local center = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
+        local mousePos = UserInputService:GetMouseLocation()
+        if (Vector2.new(mousePos.X, mousePos.Y) - center).Magnitude <= FOVSlider:GetValue() then
+            Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, predicted), 0.25)
+        end
+    end
+end
+
+-- Get closest target within FOV
+local function getClosestTarget()
+    local closest, closestDist = nil, FOVSlider:GetValue()
+    for _,plr in pairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer and plr.Character and findRootPart(plr.Character) then
+            local root = findRootPart(plr.Character)
+            local screenPos, onScreen = Camera:WorldToViewportPoint(root.Position)
+            if onScreen then
+                local dist = (Vector2.new(screenPos.X, screenPos.Y) - Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)).Magnitude
+                if dist <= closestDist then
+                    closestDist = dist
+                    closest = plr
+                end
+            end
+        end
+    end
+    return closest
+end
+
+-- Setup ESP for a player (no lingering duplicates)
 local function setupESP(plr)
     if not plr or not plr.Character then return end
 
-    -- Cleanup old ESP
-    if highlightedPlayers[plr] then highlightedPlayers[plr]:Destroy() highlightedPlayers[plr]=nil end
-    if nameLabels[plr] then nameLabels[plr]:Destroy() nameLabels[plr]=nil end
-    if healthLabels[plr] then healthLabels[plr]:Destroy() healthLabels[plr]=nil end
-    if healthBars[plr] then healthBars[plr].BG:Destroy() healthBars[plr]=nil end
-    if distanceLabels[plr] then distanceLabels[plr]:Destroy() distanceLabels[plr]=nil end
+    -- Destroy old objects
+    for _, obj in pairs({highlightedPlayers[plr], nameLabels[plr], healthLabels[plr], distanceLabels[plr], healthBars[plr] and healthBars[plr].BG}) do
+        if obj and obj.Parent then obj:Destroy() end
+    end
+    highlightedPlayers[plr], nameLabels[plr], healthLabels[plr], healthBars[plr], distanceLabels[plr] = nil, nil, nil, nil, nil
 
     -- Highlight
     local hl = Instance.new("Highlight")
@@ -334,7 +370,7 @@ local function setupESP(plr)
     nameLabel.Parent = ScreenGui
     nameLabels[plr] = nameLabel
 
-    -- Health label
+    -- Health label (left of bar)
     local healthLabel = Instance.new("TextLabel")
     healthLabel.Size = UDim2.new(0,50,0,16)
     healthLabel.BackgroundTransparency = 1
@@ -356,7 +392,7 @@ local function setupESP(plr)
     distLabel.Parent = ScreenGui
     distanceLabels[plr] = distLabel
 
-    -- Vertical health bar
+    -- Health bar vertical
     local barBG = Instance.new("Frame")
     barBG.Size = UDim2.new(0,8,0,60)
     barBG.BackgroundColor3 = Color3.fromRGB(40,40,40)
@@ -372,132 +408,104 @@ local function setupESP(plr)
     healthBars[plr] = {BG=barBG, Fill=barFill}
 end
 
--- Setup ESP for existing players
+-- Handle character added (respawn)
+local function onCharacterAdded(plr, char)
+    task.wait(0.3)
+    setupESP(plr)
+end
+
+-- Initial setup for existing players
 for _,plr in pairs(Players:GetPlayers()) do
     if plr ~= LocalPlayer then
-        setupESP(plr)
-        plr.CharacterAdded:Connect(function() task.wait(0.35) setupESP(plr) end)
+        if plr.Character then setupESP(plr) end
+        plr.CharacterAdded:Connect(function(char) onCharacterAdded(plr,char) end)
     end
 end
 
--- Player join
+-- Setup for new players
 Players.PlayerAdded:Connect(function(plr)
     if plr ~= LocalPlayer then
-        plr.CharacterAdded:Connect(function() task.wait(0.35) setupESP(plr) end)
+        plr.CharacterAdded:Connect(function(char) onCharacterAdded(plr,char) end)
+        if plr.Character then setupESP(plr) end
     end
 end)
 
--- Player leave
+-- Cleanup on player leave
 Players.PlayerRemoving:Connect(function(plr)
-    if highlightedPlayers[plr] then highlightedPlayers[plr]:Destroy() highlightedPlayers[plr]=nil end
-    if nameLabels[plr] then nameLabels[plr]:Destroy() nameLabels[plr]=nil end
-    if healthLabels[plr] then healthLabels[plr]:Destroy() healthLabels[plr]=nil end
-    if healthBars[plr] then healthBars[plr].BG:Destroy() healthBars[plr]=nil end
-    if distanceLabels[plr] then distanceLabels[plr]:Destroy() distanceLabels[plr]=nil end
+    for _, obj in pairs({highlightedPlayers[plr], nameLabels[plr], healthLabels[plr], distanceLabels[plr], healthBars[plr] and healthBars[plr].BG}) do
+        if obj and obj.Parent then obj:Destroy() end
+    end
+    highlightedPlayers[plr], nameLabels[plr], healthLabels[plr], healthBars[plr], distanceLabels[plr] = nil, nil, nil, nil, nil
 end)
 
--- RenderStepped loop
+-- Update loop
 RunService.RenderStepped:Connect(function()
-    -- Rainbow theme cycling
     local color = themeColorNow()
-    if themeNames[currentThemeIndex] == "Rainbow" then
-        color = Color3.fromHSV((tick()*0.15)%1,1,1)
-    end
 
-    -- Update GUI outlines
-    Frame.BorderColor3 = color
-    MinimizeBtn.BorderColor3 = color
-    ESPBtn.BorderColor3 = color
-    AimBtn.BorderColor3 = color
-    HeadBtn.BorderColor3 = color
-    ThemeBtn.BorderColor3 = color
-    FOVSlider.Bar.BorderColor3 = color
-    FOVSlider.Fill.BackgroundColor3 = color
-
-    -- FOV Circle
+    -- FOV circle
     fovCircle.Color = color
     fovCircle.Radius = FOVSlider:GetValue()
     fovCircle.Position = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
     fovCircle.Visible = aimbotEnabled
 
-    -- Update ESP highlights
-    for plr,hl in pairs(highlightedPlayers) do
-        hl.FillColor = color
-        hl.OutlineColor = color
-        hl.Enabled = espEnabled
-    end
-
-    -- Update ESP labels and healthbars
-    for _,plr in pairs(Players:GetPlayers()) do
-        if plr ~= LocalPlayer and plr.Character and findRootPart(plr.Character) then
-            local root = findRootPart(plr.Character)
-            local hum = plr.Character:FindFirstChild("Humanoid")
-            local health = hum and hum.Health or 0
-            local maxHealth = hum and hum.MaxHealth or 100
-            local dist = (Camera.CFrame.Position - root.Position).Magnitude
-            local scale = math.clamp(1 - dist/300, 0.5, 1)
-
-            local screenPos, onScreen = Camera:WorldToViewportPoint(root.Position + Vector3.new(0,3,0))
-
-            -- Name
-            if nameLabels[plr] then
-                nameLabels[plr].Position = UDim2.new(0,screenPos.X-60,0,screenPos.Y-50)
-                nameLabels[plr].TextScaled = true
-                nameLabels[plr].Visible = espEnabled
-            end
-
-            -- Health text (left)
-            if healthLabels[plr] then
-                healthLabels[plr].Text = "HP: "..math.floor(health)
-                healthLabels[plr].Position = UDim2.new(0,screenPos.X-70,0,screenPos.Y-8)
-                healthLabels[plr].TextColor3 = Color3.fromRGB(0,255,0)
-                healthLabels[plr].TextScaled = true
-                healthLabels[plr].Visible = espEnabled
-            end
-
-            -- Distance
-            if distanceLabels[plr] then
-                distanceLabels[plr].Text = "Dist: "..math.floor(dist).." studs"
-                distanceLabels[plr].Position = UDim2.new(0,screenPos.X+10,0,screenPos.Y-8)
-                distanceLabels[plr].TextColor3 = Color3.fromRGB(160,160,160)
-                distanceLabels[plr].TextScaled = true
-                distanceLabels[plr].Visible = espEnabled
-            end
-
-            -- Health bar vertical
-            if healthBars[plr] then
-                healthBars[plr].BG.Position = UDim2.new(0,screenPos.X-8,0,screenPos.Y-30)
-                healthBars[plr].BG.Size = UDim2.new(0,8,0,60*scale)
-                healthBars[plr].BG.Visible = espEnabled
-                healthBars[plr].Fill.Size = UDim2.new(1,0,math.clamp(health/maxHealth,0,1),0)
-                healthBars[plr].Fill.BackgroundColor3 = color
-            end
+    -- Update highlights
+    for plr, hl in pairs(highlightedPlayers) do
+        if hl then
+            hl.FillColor = color
+            hl.OutlineColor = color
+            hl.Enabled = espEnabled
         end
     end
 
-    -- Aimlock (only if right-click inside FOV)
-    if aimbotEnabled and aiming then
-        currentTarget = nil
-        local mousePos = UserInputService:GetMouseLocation()
-        for _,plr in pairs(Players:GetPlayers()) do
-            if plr ~= LocalPlayer and plr.Character and findRootPart(plr.Character) then
-                local root = findRootPart(plr.Character)
-                local screenPos, onScreen = Camera:WorldToViewportPoint(root.Position)
-                local dist = (Vector2.new(mousePos.X, mousePos.Y) - Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)).Magnitude
-                if dist <= FOVSlider:GetValue() then
-                    if not currentTarget or dist < (Vector2.new(Camera:WorldToViewportPoint(findRootPart(currentTarget.Character).Position).X, 
-                    Vector2.new(Camera:WorldToViewportPoint(findRootPart(currentTarget.Character).Position).Y) - Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)).Magnitude) then
-                        currentTarget = plr
-                    end
+    -- Update ESP text & healthbars
+    for _,plr in pairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer and plr.Character then
+            local root = findRootPart(plr.Character)
+            local hum = plr.Character:FindFirstChild("Humanoid")
+            if root then
+                local screenPos, onScreen = Camera:WorldToViewportPoint(root.Position + Vector3.new(0,3,0))
+                local health = hum and hum.Health or 0
+                local maxHealth = hum and hum.MaxHealth or 100
+                local dist = (Camera.CFrame.Position - root.Position).Magnitude
+                local scale = math.clamp(1 - dist/300, 0.5, 1)
+
+                -- Name
+                if nameLabels[plr] then
+                    nameLabels[plr].Position = UDim2.new(0,screenPos.X-60,0,screenPos.Y-50)
+                    nameLabels[plr].TextScaled = true
+                    nameLabels[plr].Visible = espEnabled
+                end
+
+                -- Health text
+                if healthLabels[plr] then
+                    healthLabels[plr].Text = "HP: "..math.floor(health)
+                    healthLabels[plr].Position = UDim2.new(0,screenPos.X-70,0,screenPos.Y-8)
+                    healthLabels[plr].Visible = espEnabled
+                end
+
+                -- Distance text
+                if distanceLabels[plr] then
+                    distanceLabels[plr].Text = "Dist: "..math.floor(dist).." studs"
+                    distanceLabels[plr].Position = UDim2.new(0,screenPos.X+10,0,screenPos.Y-8)
+                    distanceLabels[plr].Visible = espEnabled
+                end
+
+                -- Health bar
+                if healthBars[plr] then
+                    healthBars[plr].BG.Position = UDim2.new(0,screenPos.X-8,0,screenPos.Y-30)
+                    healthBars[plr].BG.Size = UDim2.new(0,8,0,60*scale)
+                    healthBars[plr].BG.Visible = espEnabled
+                    healthBars[plr].Fill.Size = UDim2.new(1,0,math.clamp(health/maxHealth,0,1),0)
+                    healthBars[plr].Fill.BackgroundColor3 = color
                 end
             end
         end
-        if currentTarget then
-            local part = headAimEnabled and currentTarget.Character:FindFirstChild("Head") or findRootPart(currentTarget.Character)
-            if part then
-                Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, part.Position + part.Velocity*0.1), 0.25)
-            end
-        end
+    end
+
+    -- Aimlock
+    if aimbotEnabled and aiming then
+        currentTarget = getClosestTarget()
+        if currentTarget then lockOnTarget(currentTarget) end
     end
 end)
 
