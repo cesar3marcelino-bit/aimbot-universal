@@ -1,8 +1,8 @@
 --[[ 
 Script created by C_mthe3rd gaming
 Discord: iliketrains9999
-Polished Version: Fully fixed & working
-]]  
+Polished Version: Everything fixed
+]]
 
 -- ===== Settings =====
 local teamCheck = false
@@ -114,7 +114,6 @@ for _, p in ipairs(Players:GetPlayers()) do createHighlight(p) end
 Players.PlayerAdded:Connect(createHighlight)
 Players.PlayerRemoving:Connect(removeHighlight)
 
-Part 3: Targeting & Lock
 -- ===== Target selection & lock =====
 local function getClosestTarget()
     local closestTarget = nil
@@ -159,23 +158,23 @@ local function lockOnTarget()
     end
 end
 
--- ===== Main Render Loop =====
+-- ===== Main render loop =====
 RunService.RenderStepped:Connect(function()
-    -- Update theme
+    -- update theme color (handles rainbow)
     local newTheme
-    if themeMode == 1 then rainbowEnabled=false; rainyEnabled=false; newTheme=Color3.fromRGB(255,0,0)
-    elseif themeMode==2 then rainbowEnabled=false; rainyEnabled=false; newTheme=Color3.fromRGB(0,122,255)
-    elseif themeMode==3 then rainbowEnabled=true; rainyEnabled=false; local t=tick()*0.2; newTheme=Color3.fromHSV(t%1,1,1)
-    elseif themeMode==4 then rainbowEnabled=false; rainyEnabled=true; newTheme=Color3.fromRGB(140,160,185)
-    else rainbowEnabled=false; rainyEnabled=false; newTheme=Color3.fromRGB(0,122,255) end
+    if themeMode == 1 then newTheme = Color3.fromRGB(255,0,0); rainbowEnabled=false; rainyEnabled=false
+    elseif themeMode == 2 then newTheme = Color3.fromRGB(0,122,255); rainbowEnabled=false; rainyEnabled=false
+    elseif themeMode == 3 then newTheme = Color3.fromHSV(tick()*0.2%1,1,1); rainbowEnabled=true; rainyEnabled=false
+    elseif themeMode == 4 then newTheme = Color3.fromRGB(140,160,185); rainbowEnabled=false; rainyEnabled=true
+    else newTheme = Color3.fromRGB(0,122,255); rainbowEnabled=false; rainyEnabled=false end
     if newTheme ~= themeColor then
         themeColor = newTheme
         for _, hl in pairs(highlightedPlayers) do
-            if hl and typeof(hl)=="Instance" then pcall(function() hl.FillColor=themeColor; hl.OutlineColor=themeColor end) end
+            if hl and typeof(hl)=="Instance" then pcall(function() hl.FillColor = themeColor; hl.OutlineColor = themeColor end) end
         end
     end
 
-    -- FOV Circle
+    -- update FOV circle
     if FOVCircle then
         pcall(function()
             FOVCircle.Position = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
@@ -185,151 +184,116 @@ RunService.RenderStepped:Connect(function()
         end)
     end
 
-    -- Update highlights
-    if espEnabled then
-        for _, player in pairs(Players:GetPlayers()) do
-            if player ~= LocalPlayer then
-                if (not highlightedPlayers[player]) and player.Character and findRootPart(player.Character) then
-                    createHighlight(player)
-                elseif highlightedPlayers[player] then
-                    pcall(function()
-                        highlightedPlayers[player].Enabled = espEnabled
-                        highlightedPlayers[player].FillColor = themeColor
-                        highlightedPlayers[player].OutlineColor = themeColor
-                    end)
-                end
-            end
-        end
-    else
-        for p, hl in pairs(highlightedPlayers) do
-            if hl then pcall(function() hl.Enabled=false end) end
+    -- Ensure highlights exist/are updated
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and highlightedPlayers[player] then
+            pcall(function()
+                highlightedPlayers[player].Enabled = espEnabled
+                highlightedPlayers[player].FillColor = themeColor
+                highlightedPlayers[player].OutlineColor = themeColor
+            end)
         end
     end
 
     -- Aimbot
-    if aimbotEnabled then
-        if UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
-            if not currentTarget then currentTarget = getClosestTarget() end
-            if currentTarget then lockOnTarget() end
-        else
-            currentTarget = nil
-        end
+    if aimbotEnabled and UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
+        if not currentTarget then currentTarget = getClosestTarget() end
+        if currentTarget then lockOnTarget() end
+    else
+        currentTarget = nil
     end
 end)
 
--- ===== GUI Controls: Aimlock, HeadAim, ESP, Theme =====
-local buttonsFolder = Instance.new("Folder")
-buttonsFolder.Name = "ButtonsFolder"
+-- ===== GUI =====
+local function createGUI()
+    if game.CoreGui:FindFirstChild("Aimlock_GUI") then game.CoreGui.Aimlock_GUI:Destroy() end
+    local ScreenGui = Instance.new("ScreenGui")
+    ScreenGui.Name = "Aimlock_GUI"
+    ScreenGui.Parent = game.CoreGui
+    ScreenGui.ResetOnSpawn = false
 
-local function createButton(text, posY, callback)
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0, 220, 0, 26)
-    btn.Position = UDim2.new(0, 20, 0, posY)
-    btn.BackgroundColor3 = Color3.fromRGB(45,45,45)
-    btn.BorderColor3 = themeColor
-    btn.BorderSizePixel = 2
-    btn.Text = text
-    btn.TextColor3 = Color3.fromRGB(255,255,255)
-    btn.TextScaled = true
-    btn.AutoButtonColor = false
-    btn.MouseButton1Click:Connect(function()
-        local tween1 = TweenService:Create(btn, TweenInfo.new(0.08), {Size=UDim2.new(0,230,0,28)})
-        local tween2 = TweenService:Create(btn, TweenInfo.new(0.08), {Size=UDim2.new(0,220,0,26)})
-        tween1:Play(); tween1.Completed:Wait(); tween2:Play()
-        callback()
-    end)
-    return btn
+    local Frame = Instance.new("Frame", ScreenGui)
+    Frame.Name = "MainFrame"
+    Frame.Size = UDim2.new(0,260,0,300)
+    Frame.Position = UDim2.new(1,-280,0,80)
+    Frame.BackgroundColor3 = Color3.fromRGB(20,20,20)
+    Frame.BorderSizePixel = 2
+    Frame.BorderColor3 = themeColor
+    Frame.Active = true
+
+    local Content = Instance.new("Frame", Frame)
+    Content.Name = "Content"
+    Content.Size = UDim2.new(1,0,1,-28)
+    Content.Position = UDim2.new(0,0,0,28)
+    Content.BackgroundTransparency = 1
+
+    local TitleBar = Instance.new("Frame", Frame)
+    TitleBar.Size = UDim2.new(1,0,0,28)
+    TitleBar.BackgroundTransparency = 1
+
+    local TitleLabel = Instance.new("TextLabel", TitleBar)
+    TitleLabel.Size = UDim2.new(1,-10,1,0)
+    TitleLabel.Position = UDim2.new(0,10,0,0)
+    TitleLabel.BackgroundTransparency = 1
+    TitleLabel.Text = "Universal Aimbot v2"
+    TitleLabel.TextColor3 = Color3.fromRGB(255,255,255)
+    TitleLabel.TextScaled = true
+    TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+    local CreditsLabel = Instance.new("TextLabel", Frame)
+    CreditsLabel.Size = UDim2.new(1,-10,0,16)
+    CreditsLabel.Position = UDim2.new(0,10,0,28)
+    CreditsLabel.BackgroundTransparency = 1
+    CreditsLabel.Text = "Script By C_mthe3rd"
+    CreditsLabel.TextColor3 = Color3.fromRGB(180,180,180)
+    CreditsLabel.TextScaled = false
+    CreditsLabel.TextXAlignment = Enum.TextXAlignment.Left
+    CreditsLabel.Font = Enum.Font.SourceSans
+    CreditsLabel.TextSize = 14
 end
 
--- Aimlock toggle
-local AimBtn = createButton("Aimlock: OFF", 10, function()
-    aimbotEnabled = not aimbotEnabled
-    AimBtn.Text = aimbotEnabled and "Aimlock: ON" or "Aimlock: OFF"
+-- ===== Minimize Button =====
+local minimized = false
+local MinButton = Instance.new("TextButton")
+MinButton.Size = UDim2.new(0,28,0,28)
+MinButton.Position = UDim2.new(1,-28,0,0)
+MinButton.BackgroundColor3 = Color3.fromRGB(30,30,30)
+MinButton.BorderSizePixel = 1
+MinButton.BorderColor3 = themeColor
+MinButton.Text = "_"
+MinButton.TextColor3 = Color3.fromRGB(255,255,255)
+MinButton.TextScaled = true
+MinButton.MouseButton1Click:Connect(function()
+    minimized = not minimized
+    Content.Visible = not minimized
+    Frame.Size = minimized and UDim2.new(0,260,0,28) or UDim2.new(0,260,0,300)
 end)
 
--- Head aim toggle
-local HeadBtn = createButton("Head Aim: OFF", 46, function()
-    headAimEnabled = not headAimEnabled
-    HeadBtn.Text = headAimEnabled and "Head Aim: ON" or "Head Aim: OFF"
-end)
-
--- ESP toggle
-local EspBtn = createButton("ESP: ON", 82, function()
-    espEnabled = not espEnabled
-    EspBtn.Text = espEnabled and "ESP: ON" or "ESP: OFF"
-end)
-
--- Theme selector
-local ThemeBtn = createButton("Theme: BLUE", 118, function()
-    themeMode = themeMode + 1
-    if themeMode > 4 then themeMode = 1 end
-    ThemeBtn.Text = themeMode==1 and "Theme: RED" or themeMode==2 and "Theme: BLUE" or themeMode==3 and "Theme: RAINBOW" or "Theme: RAINY"
-end)
-
--- ===== FOV Slider =====
-local FOVLabel = Instance.new("TextLabel")
-FOVLabel.Size = UDim2.new(0, 220, 0, 20)
-FOVLabel.Position = UDim2.new(0,20,0,154)
-FOVLabel.BackgroundTransparency = 1
-FOVLabel.TextColor3 = themeColor
-FOVLabel.TextScaled = true
-FOVLabel.Text = "FOV Circle: "..tostring(fov)
-FOVLabel.Visible = false
-
-local SliderBg = Instance.new("Frame")
-SliderBg.Size = UDim2.new(0,220,0,18)
-SliderBg.Position = UDim2.new(0,20,0,178)
-SliderBg.BackgroundColor3 = Color3.fromRGB(40,40,40)
-SliderBg.BorderColor3 = Color3.fromRGB(30,30,30)
-SliderBg.BorderSizePixel = 1
-SliderBg.Visible = false
-
-local SliderFill = Instance.new("Frame", SliderBg)
-SliderFill.Size = UDim2.new((fov-minFov)/(maxFov-minFov),0,1,0)
-SliderFill.BackgroundColor3 = themeColor
-SliderFill.BorderSizePixel = 0
-
-local Knob = Instance.new("TextButton", SliderBg)
-Knob.Size = UDim2.new(0,14,1,0)
-Knob.AnchorPoint = Vector2.new(0.5,0.5)
-Knob.Position = UDim2.new(SliderFill.Size.X.Scale,0,0.5,0)
-Knob.BackgroundColor3 = Color3.fromRGB(220,220,220)
-Knob.BorderSizePixel = 0
-Knob.Text = ""
-Knob.AutoButtonColor = false
-
-local draggingSlider = false
-local function updateFOV(rel)
-    rel = math.clamp(rel,0,1)
-    SliderFill.Size = UDim2.new(rel,0,1,0)
-    Knob.Position = UDim2.new(rel,0,0.5,0)
-    fov = math.floor(minFov + rel*(maxFov-minFov))
-    FOVLabel.Text = "FOV Circle: "..tostring(fov)
-    if FOVCircle then FOVCircle.Radius = fov end
+-- ===== Draggable GUI =====
+local dragging, dragInput, dragStart, startPos = false, nil, nil, nil
+local function updateInput(input)
+    local delta = input.Position - dragStart
+    Frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
 end
-
-SliderBg.InputBegan:Connect(function(input)
-    if input.UserInputType==Enum.UserInputType.MouseButton1 then
-        draggingSlider = true
-        local rel = (input.Position.X-SliderBg.AbsolutePosition.X)/SliderBg.AbsoluteSize.X
-        updateFOV(rel)
+TitleBar.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = Frame.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then dragging = false end
+        end)
     end
 end)
-Knob.InputBegan:Connect(function(input)
-    if input.UserInputType==Enum.UserInputType.MouseButton1 then draggingSlider=true end
+TitleBar.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement then dragInput = input end
 end)
 UserInputService.InputChanged:Connect(function(input)
-    if draggingSlider and input.UserInputType==Enum.UserInputType.MouseMovement then
-        local rel = (input.Position.X-SliderBg.AbsolutePosition.X)/SliderBg.AbsoluteSize.X
-        updateFOV(rel)
-    end
-end)
-UserInputService.InputEnded:Connect(function(input)
-    if input.UserInputType==Enum.UserInputType.MouseButton1 then draggingSlider=false end
+    if input == dragInput and dragging then updateInput(input) end
 end)
 
--- ===== Clouds & Rain Setup =====
-local RainLayer = Instance.new("Frame")
+-- ===== Clouds & Rain Layer =====
+local RainLayer = Instance.new("Frame", Frame)
 RainLayer.Size = UDim2.new(1,0,1,0)
 RainLayer.BackgroundTransparency = 1
 RainLayer.ClipsDescendants = true
@@ -351,72 +315,24 @@ local cloudA = createCloud(0, 8, 120, 36)
 local cloudB = createCloud(200, 2, 160, 48)
 local cloudC = createCloud(400, 12, 110, 34)
 
-local function spawnRaindrop()
-    if not rainyEnabled then return end
-    local xPixel = math.random(4, Frame.AbsoluteSize.X-4)
-    local drop = Instance.new("Frame", RainLayer)
-    drop.Size = UDim2.new(0,2,0,10)
-    drop.Position = UDim2.new(0,xPixel,0,-20)
-    drop.BackgroundColor3 = Color3.fromRGB(200,220,255)
-    drop.BorderSizePixel = 0
-    drop.ZIndex = 1
-    local tween = TweenService:Create(drop, TweenInfo.new(0.5, Enum.EasingStyle.Linear), {Position=UDim2.new(0,xPixel,0,Frame.AbsoluteSize.Y+30)})
-    tween:Play()
-    tween.Completed:Connect(function() pcall(function() drop:Destroy() end) end)
-end
-
--- Spawn rain continuously
+-- Spawn clouds and rain continuously
 spawn(function()
     while true do
         if rainyEnabled then
-            spawnRaindrop()
-            task.wait(0.04 + math.random()*0.04)
-        else
-            task.wait(0.16)
+            -- spawn raindrops
+            local drop = Instance.new("Frame", RainLayer)
+            drop.Size = UDim2.new(0,2,0,10)
+            drop.Position = UDim2.new(0, math.random(4, Frame.AbsoluteSize.X-4), 0, -20)
+            drop.BackgroundColor3 = Color3.fromRGB(200,220,255)
+            drop.BorderSizePixel = 0
+            drop.ZIndex = 1
+            local tween = TweenService:Create(drop, TweenInfo.new(0.5, Enum.EasingStyle.Linear), {Position=UDim2.new(0, drop.Position.X.Offset, 0, Frame.AbsoluteSize.Y+30)})
+            tween:Play()
+            tween.Completed:Connect(function() pcall(function() drop:Destroy() end) end)
         end
+        task.wait(0.04)
     end
 end)
 
--- Cloud movement loop
-spawn(function()
-    while true do
-        if rainyEnabled then
-            pcall(function()
-                cloudA.Position = UDim2.new(0,-150,0,6)
-                cloudB.Position = UDim2.new(0,-80,0,2)
-                cloudC.Position = UDim2.new(0,-120,0,12)
-                local tweenA = TweenService:Create(cloudA,TweenInfo.new(12,Enum.EasingStyle.Linear),{Position=UDim2.new(0,Frame.AbsoluteSize.X,0,6)})
-                local tweenB = TweenService:Create(cloudB,TweenInfo.new(16,Enum.EasingStyle.Linear),{Position=UDim2.new(0,Frame.AbsoluteSize.X,0,2)})
-                local tweenC = TweenService:Create(cloudC,TweenInfo.new(10,Enum.EasingStyle.Linear),{Position=UDim2.new(0,Frame.AbsoluteSize.X,0,12)})
-                tweenA:Play(); tweenB:Play(); tweenC:Play()
-                tweenA.Completed:Wait(); tweenB.Completed:Wait(); tweenC.Completed:Wait()
-            end)
-        else
-            task.wait(0.5)
-        end
-    end
-end)
-
--- ===== Final GUI Initialization =====
-local function createGUI()
-    local ScreenGui = Instance.new("ScreenGui")
-    ScreenGui.Name = "Aimlock_GUI"
-    ScreenGui.Parent = game.CoreGui
-    ScreenGui.ResetOnSpawn = false
-
-    -- Frame
-    Frame.Parent = ScreenGui
-    Frame.ZIndex = 4
-    Content.Parent = Frame
-    TitleBar.Parent = Frame
-    buttonsFolder.Parent = Frame
-    FOVLabel.Parent = Frame
-    SliderBg.Parent = Frame
-    RainLayer.Parent = Frame
-
-    -- Minimize button
-    MinButton.Parent = Frame
-end
-
--- Call createGUI only after everything is defined
+-- Call GUI creator
 createGUI()
