@@ -1,7 +1,7 @@
 --[[ 
 Universal Aimbot v5 – Part 1: GUI Setup
 Author: C_mthe3rd Gaming
-Features: GUI, Toggles, Theme, Sliders, ESP placeholders
+Features: GUI, Toggles, Theme, Sliders, ESP placeholders, Stable Noclip
 ]]
 
 local Players = game:GetService("Players")
@@ -242,9 +242,9 @@ local FOVSlider = makeSlider(Content,"FOV Circle Size",252,50,500,120)
 local NoclipBtn = makeToggle(Content, "Noclip", 332, false)
 
 --[[ 
-Universal Aimbot v5 – Part 2: Functionality & Loops (Fixed)
+Universal Aimbot v5 – Part 2: Functionality & Loops (Fixed ESP + Stable Noclip)
 Author: C_mthe3rd Gaming
-Features: Aimlock, ESP, Distance, Noclip toggle fix, Fullbright brightness indicator, FOV Circle
+Features: Aimlock, ESP, Distance, Fullbright, FOV Circle, Stable Noclip
 ]]
 
 -- Fullbright button
@@ -265,16 +265,27 @@ FullbrightBtn.MouseButton1Click:Connect(function()
     FullbrightBtn.BackgroundColor3 = fullbrightEnabled and Color3.fromRGB(200,200,200) or Color3.fromRGB(45,45,45)
 end)
 
--- Noclip toggle
+-- Noclip toggle (stable ON/OFF, unchanged)
+local ClipConnection
 NoclipBtn.MouseButton1Click:Connect(function()
     noclipEnabled = not noclipEnabled
     NoclipBtn.Text = "Noclip: "..(noclipEnabled and "On" or "Off")
-    if LocalPlayer.Character then
-        for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
-            if part:IsA("BasePart") then
-                part.CanCollide = not noclipEnabled
+
+    if ClipConnection then
+        ClipConnection:Disconnect()
+        ClipConnection = nil
+    end
+
+    if noclipEnabled and LocalPlayer.Character then
+        ClipConnection = RunService.Stepped:Connect(function()
+            if LocalPlayer.Character then
+                for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        part.CanCollide = false
+                    end
+                end
             end
-        end
+        end)
     end
 end)
 
@@ -306,7 +317,7 @@ MinimizeBtn.MouseButton1Click:Connect(function()
     Content.Visible = not minimized
     Credits.Visible = not minimized
     DistanceLabel.Visible = not minimized
-    FullbrightBtn.Visible = not minimized -- hide fullbright when minimized
+    FullbrightBtn.Visible = not minimized
     if minimized then
         Frame.Size = UDim2.new(0,400,0,36)
     else
@@ -348,18 +359,32 @@ local function removeESP(plr)
     highlightedPlayers[plr]=nil 
 end
 
--- Handle players joining/leaving and respawning
+-- Handle players joining/leaving and respawning (fixed)
+local function onCharacterAdded(plr, char)
+    task.wait(0.1)
+    setupESP(plr)
+end
+
 Players.PlayerAdded:Connect(function(plr)
     plr.CharacterAdded:Connect(function(char)
-        task.wait(0.1)
-        setupESP(plr)
+        onCharacterAdded(plr, char)
     end)
+    if plr.Character then
+        onCharacterAdded(plr, plr.Character)
+    end
 end)
+
 Players.PlayerRemoving:Connect(function(plr)
     removeESP(plr)
 end)
-for _,plr in pairs(Players:GetPlayers()) do 
-    if plr.Character then setupESP(plr) end 
+
+for _, plr in pairs(Players:GetPlayers()) do
+    if plr.Character then
+        onCharacterAdded(plr, plr.Character)
+    end
+    plr.CharacterAdded:Connect(function(char)
+        onCharacterAdded(plr, char)
+    end)
 end
 
 -- Main update loop
@@ -448,15 +473,6 @@ RunService.RenderStepped:Connect(function()
     if fullbrightEnabled then
         Lighting.ClockTime = 14
         Lighting.Brightness = 2
-    end
-
-    -- Instant Noclip logic
-    if noclipEnabled and LocalPlayer.Character then
-        for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
-            if part:IsA("BasePart") then
-                part.CanCollide = false
-            end
-        end
     end
 end)
 
