@@ -1,11 +1,13 @@
 --[[ 
-Universal Aimbot v5 – Part 1: GUI, Toggles & Theme (Fixed Noclip & Distance)
+Universal Aimbot v5 – Part 1: GUI Setup
 Author: C_mthe3rd Gaming
-]] 
+Features: GUI, Toggles, Theme, Sliders, ESP placeholders
+]]
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
+local Lighting = game:GetService("Lighting")
 local CoreGui = game:GetService("CoreGui")
 local Camera = workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
@@ -17,6 +19,7 @@ end
 
 -- === Settings ===
 local aimbotEnabled, headAimEnabled, espEnabled = false, false, true
+local noclipEnabled, fullbrightEnabled = false, false
 local themeNames = {"Red","Blue","Orange","Green","Rainbow"}
 local currentThemeIndex = 2
 
@@ -35,7 +38,7 @@ local function themeColorNow()
     return map[name] or Color3.fromRGB(0,122,255)
 end
 
--- GUI creation (Frame, Title, Buttons, etc.)
+-- GUI creation
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "UniversalAimbot_GUI"
 ScreenGui.IgnoreGuiInset = true
@@ -90,7 +93,7 @@ Content.Position = UDim2.new(0,0,0,36)
 Content.BackgroundTransparency = 1
 Content.Parent = Frame
 
--- Credits
+-- Credits and Distance
 local Credits = Instance.new("TextLabel")
 Credits.Size = UDim2.new(0.7,0,0,18)
 Credits.Position = UDim2.new(0,10,1,-28)
@@ -100,7 +103,18 @@ Credits.TextColor3 = Color3.fromRGB(180,180,180)
 Credits.TextXAlignment = Enum.TextXAlignment.Left
 Credits.Font = Enum.Font.SourceSans
 Credits.TextSize = 14
-Credits.Parent = Frame
+Credits.Parent = Content
+
+local DistanceLabel = Instance.new("TextLabel")
+DistanceLabel.Size = UDim2.new(0.7,0,0,18)
+DistanceLabel.Position = UDim2.new(0,10,1,-48)
+DistanceLabel.BackgroundTransparency = 1
+DistanceLabel.Text = "Distance: N/A"
+DistanceLabel.TextColor3 = Color3.fromRGB(255,255,255)
+DistanceLabel.Font = Enum.Font.SourceSansBold
+DistanceLabel.TextSize = 14
+DistanceLabel.TextXAlignment = Enum.TextXAlignment.Left
+DistanceLabel.Parent = Content
 
 -- Drag functionality
 local dragging, dragStart, startPos = false, nil, nil
@@ -123,10 +137,10 @@ TitleBar.InputChanged:Connect(function(input)
     end
 end)
 
--- === Helper: Toggle Button (Maximized) ===
-local function makeToggle(parent, text, y, initial)
+-- Helper functions for toggle and slider
+local function makeToggle(parent,text,y,initial)
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(1,-24,0,50)  -- full width minus margin
+    btn.Size = UDim2.new(1,-24,0,50)
     btn.Position = UDim2.new(0,12,0,y)
     btn.BackgroundColor3 = Color3.fromRGB(45,45,45)
     btn.BorderSizePixel = 2
@@ -139,8 +153,7 @@ local function makeToggle(parent, text, y, initial)
     return btn
 end
 
--- === Theme Button (Maximized) ===
-local function makeThemeButton(parent, y)
+local function makeThemeButton(parent,y)
     local btn = Instance.new("TextButton")
     btn.Size = UDim2.new(1,-24,0,50)
     btn.Position = UDim2.new(0,12,0,y)
@@ -155,7 +168,6 @@ local function makeThemeButton(parent, y)
     return btn
 end
 
--- === FOV Slider (Maximized) ===
 local function makeSlider(parent,labelText,y,minVal,maxVal,initialVal)
     local lbl = Instance.new("TextLabel")
     lbl.Size = UDim2.new(1,-24,0,24)
@@ -221,91 +233,146 @@ local function makeSlider(parent,labelText,y,minVal,maxVal,initialVal)
     }
 end
 
--- Create buttons and slider
+-- Buttons and slider
 local ESPBtn = makeToggle(Content,"ESP",12,true)
 local AimBtn = makeToggle(Content,"Aimlock",72,false)
 local HeadBtn = makeToggle(Content,"Head Aim",132,false)
 local ThemeBtn = makeThemeButton(Content,192)
 local FOVSlider = makeSlider(Content,"FOV Circle Size",252,50,500,120)
+local NoclipBtn = makeToggle(Content, "Noclip", 332, false)
+
+--[[ 
+Universal Aimbot v5 – Part 2: Functionality & Loops
+Author: C_mthe3rd Gaming
+Features: Aimlock, ESP, Distance, Noclip, Fullbright, FOV Circle
+]]
+
+-- Fullbright button
+local FullbrightBtn = Instance.new("TextButton")
+FullbrightBtn.Size = UDim2.new(0,40,0,40)
+FullbrightBtn.Position = UDim2.new(1,-52,1,-52)
+FullbrightBtn.BackgroundColor3 = Color3.fromRGB(45,45,45)
+FullbrightBtn.BorderSizePixel = 2
+FullbrightBtn.BorderColor3 = themeColorNow()
+FullbrightBtn.Text = "☀"
+FullbrightBtn.TextColor3 = Color3.fromRGB(255,255,255)
+FullbrightBtn.Font = Enum.Font.SourceSansBold
+FullbrightBtn.TextSize = 20
+FullbrightBtn.Parent = Frame
+
+FullbrightBtn.MouseButton1Click:Connect(function()
+    fullbrightEnabled = not fullbrightEnabled
+    FullbrightBtn.TextTransparency = fullbrightEnabled and 0.5 or 0
+end)
 
 -- Noclip toggle
-local NoclipBtn = makeToggle(Content, "Noclip", 332, false)
-local noclipEnabled = false
-local originalCollides = {} -- store original CanCollide states
-
--- Distance label (below noclip, not merged)
-local DistanceLabel = Instance.new("TextLabel")
-DistanceLabel.Size = UDim2.new(1,-24,0,28)
-DistanceLabel.Position = UDim2.new(0,12,0,394) -- slightly lower than noclip
-DistanceLabel.BackgroundTransparency = 1
-DistanceLabel.Text = "Distance: N/A"
-DistanceLabel.TextColor3 = Color3.fromRGB(255,255,255)
-DistanceLabel.Font = Enum.Font.SourceSansBold
-DistanceLabel.TextSize = 18
-DistanceLabel.TextXAlignment = Enum.TextXAlignment.Left
-DistanceLabel.Parent = Content
-
--- Noclip toggle instant
 NoclipBtn.MouseButton1Click:Connect(function()
     noclipEnabled = not noclipEnabled
     NoclipBtn.Text = "Noclip: "..(noclipEnabled and "On" or "Off")
-
-    if LocalPlayer.Character then
-        for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
-            if part:IsA("BasePart") then
-                part.CanCollide = not noclipEnabled
-            end
-        end
-    end
 end)
 
--- Keep noclip instant for new parts
-RunService.RenderStepped:Connect(function()
-    if noclipEnabled and LocalPlayer.Character then
-        for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
-            if part:IsA("BasePart") then
-                part.CanCollide = false
-            end
-        end
-    end
-end)
-
--- Buttons functionality
-ESPBtn.MouseButton1Click:Connect(function()
-    espEnabled = not espEnabled
-    ESPBtn.Text = "ESP: "..(espEnabled and "On" or "Off")
-end)
-AimBtn.MouseButton1Click:Connect(function()
-    aimbotEnabled = not aimbotEnabled
-    AimBtn.Text = "Aimlock: "..(aimbotEnabled and "On" or "Off")
-end)
-HeadBtn.MouseButton1Click:Connect(function()
-    headAimEnabled = not headAimEnabled
-    HeadBtn.Text = "Head Aim: "..(headAimEnabled and "On" or "Off")
-end)
+-- Theme toggle
 ThemeBtn.MouseButton1Click:Connect(function()
-    currentThemeIndex = currentThemeIndex + 1
-    if currentThemeIndex > #themeNames then currentThemeIndex = 1 end
+    currentThemeIndex = currentThemeIndex +1
+    if currentThemeIndex > #themeNames then currentThemeIndex =1 end
     ThemeBtn.Text = "Theme: "..themeNames[currentThemeIndex]
 end)
 
+-- Other button toggles
+ESPBtn.MouseButton1Click:Connect(function() 
+    espEnabled = not espEnabled
+    ESPBtn.Text = "ESP: "..(espEnabled and "On" or "Off") 
+end)
+AimBtn.MouseButton1Click:Connect(function() 
+    aimbotEnabled = not aimbotEnabled
+    AimBtn.Text = "Aimlock: "..(aimbotEnabled and "On" or "Off") 
+end)
+HeadBtn.MouseButton1Click:Connect(function() 
+    headAimEnabled = not headAimEnabled
+    HeadBtn.Text = "Head Aim: "..(headAimEnabled and "On" or "Off") 
+end)
+
 -- Minimize toggle
-local minimized=false
+local minimized = false
 MinimizeBtn.MouseButton1Click:Connect(function()
     minimized = not minimized
     Content.Visible = not minimized
-    if minimized then
-        Frame.Size = UDim2.new(0,400,0,36)
-        Credits.Position = UDim2.new(0,10,0,36)
-    else
-        Frame.Size = UDim2.new(0,400,0,480)
-        Credits.Position = UDim2.new(0,10,1,-28)
-    end
+    Credits.Visible = not minimized
+    DistanceLabel.Visible = not minimized
+    FullbrightBtn.Visible = not minimized
+    Frame.Size = minimized and UDim2.new(0,400,0,36) or UDim2.new(0,400,0,480)
 end)
 
--- Rainbow theme update
+-- FOV Circle
+local fovCircle = Drawing.new("Circle")
+fovCircle.Radius = FOVSlider:GetValue()
+fovCircle.Color = themeColorNow()
+fovCircle.Thickness = 2
+fovCircle.Filled = false
+fovCircle.Visible = aimbotEnabled
+fovCircle.NumSides = 100
+fovCircle.Position = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
+
+-- ESP highlight logic
+local highlightedPlayers = {}
+local aiming = false
+local function findRootPart(character) return character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso") end
+local function findHeadPart(character) return character:FindFirstChild("Head") or findRootPart(character) end
+
+local function setupESP(plr)
+    if plr == LocalPlayer then return end
+    removeESP(plr)
+    if plr.Character then
+        local hl = Instance.new("Highlight")
+        hl.Adornee = plr.Character
+        hl.FillTransparency = 0.6
+        hl.FillColor = themeColorNow()
+        hl.OutlineColor = themeColorNow()
+        hl.Enabled = espEnabled
+        hl.Parent = CoreGui
+        highlightedPlayers[plr] = hl
+    end
+end
+
+function removeESP(plr)
+    if highlightedPlayers[plr] then
+        if highlightedPlayers[plr].Parent then highlightedPlayers[plr]:Destroy() end
+        highlightedPlayers[plr] = nil
+    end
+end
+
+-- Player hooks for faster ESP updates
+Players.PlayerAdded:Connect(function(plr)
+    plr.CharacterAdded:Connect(function(char)
+        task.wait(0.05)
+        setupESP(plr)
+    end)
+    plr.CharacterRemoving:Connect(function()
+        removeESP(plr)
+    end)
+end)
+
+Players.PlayerRemoving:Connect(function(plr)
+    removeESP(plr)
+end)
+
+-- Initial setup for current players
+for _, plr in pairs(Players:GetPlayers()) do
+    if plr.Character then setupESP(plr) end
+    plr.CharacterAdded:Connect(function(char)
+        task.wait(0.05)
+        setupESP(plr)
+    end)
+    plr.CharacterRemoving:Connect(function()
+        removeESP(plr)
+    end)
+end
+
+-- Main update loop
 RunService.RenderStepped:Connect(function()
     local color = themeColorNow()
+
+    -- GUI colors
     Frame.BorderColor3 = color
     MinimizeBtn.BorderColor3 = color
     ESPBtn.BorderColor3 = color
@@ -315,105 +382,16 @@ RunService.RenderStepped:Connect(function()
     FOVSlider.Bar.BorderColor3 = color
     FOVSlider.Fill.BackgroundColor3 = color
     NoclipBtn.BorderColor3 = color
-end)
+    FullbrightBtn.BorderColor3 = color
+    FullbrightBtn.BackgroundColor3 = Color3.fromRGB(45,45,45)
 
--- FOV circle (kept, updates dynamically)
-local fovCircle = Drawing.new("Circle")
-fovCircle.Radius = FOVSlider:GetValue()
-fovCircle.Color = themeColorNow()
-fovCircle.Thickness = 2
-fovCircle.Filled = false
-fovCircle.Visible = false
-fovCircle.NumSides = 100
-fovCircle.Position = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
-
--- Distance update logic will be in part 2
-
---[[ 
-Universal Aimbot v5 – Part 2: ESP, Aimlock & Distance (Fixed)
-Author: C_mthe3rd Gaming
-]] 
-
-local highlightedPlayers = {}
-local aiming = false
-
--- Helper: find root or head
-local function findRootPart(character)
-    return character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso")
-end
-local function findHeadPart(character)
-    return character:FindFirstChild("Head") or findRootPart(character)
-end
-
--- Setup ESP highlight for a player
-local function setupESP(plr)
-    if plr == LocalPlayer then return end
-    if not plr or not plr.Character then return end
-
-    -- Remove previous highlight if exists
-    if highlightedPlayers[plr] then
-        if highlightedPlayers[plr].Parent then highlightedPlayers[plr]:Destroy() end
-        highlightedPlayers[plr] = nil
-    end
-
-    -- Create highlight
-    local hl = Instance.new("Highlight")
-    hl.Adornee = plr.Character
-    hl.FillTransparency = 0.6
-    hl.FillColor = themeColorNow()
-    hl.OutlineColor = themeColorNow()
-    hl.Enabled = espEnabled
-    hl.Parent = CoreGui
-    highlightedPlayers[plr] = hl
-end
-
--- Remove ESP highlight for a player
-local function removeESP(plr)
-    if highlightedPlayers[plr] then
-        if highlightedPlayers[plr].Parent then highlightedPlayers[plr]:Destroy() end
-        highlightedPlayers[plr] = nil
-    end
-end
-
--- Handle character respawn
-local function onCharacterAdded(plr, char)
-    task.wait(0.1)
-    setupESP(plr)
-end
-
--- Setup existing and new players
-for _, plr in pairs(Players:GetPlayers()) do
-    if plr ~= LocalPlayer then
-        if plr.Character then setupESP(plr) end
-        plr.CharacterAdded:Connect(function(char) onCharacterAdded(plr,char) end)
-    end
-end
-
-Players.PlayerAdded:Connect(function(plr)
-    if plr ~= LocalPlayer then
-        plr.CharacterAdded:Connect(function(char) onCharacterAdded(plr,char) end)
-        if plr.Character then setupESP(plr) end
-    end
-end)
-
-Players.PlayerRemoving:Connect(function(plr)
-    removeESP(plr)
-end)
-
--- FOV Circle
-fovCircle.Radius = FOVSlider:GetValue()
-fovCircle.Position = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
-fovCircle.Visible = false
-
--- Main update loop
-RunService.RenderStepped:Connect(function()
-    local color = themeColorNow()
-    fovCircle.Color = color
+    -- FOV Circle
     fovCircle.Radius = FOVSlider:GetValue()
-    fovCircle.Position = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
+    fovCircle.Color = color
     fovCircle.Visible = aimbotEnabled
+    fovCircle.Position = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
 
-    -- Update Highlights
+    -- Update ESP highlights
     for plr, hl in pairs(highlightedPlayers) do
         if hl then
             hl.FillColor = color
@@ -421,13 +399,9 @@ RunService.RenderStepped:Connect(function()
             hl.Enabled = espEnabled
         end
     end
+    if highlightedPlayers[LocalPlayer] then highlightedPlayers[LocalPlayer].Enabled = false end
 
-    -- Remove self highlight if enabled
-    if highlightedPlayers[LocalPlayer] then
-        highlightedPlayers[LocalPlayer].Enabled = false
-    end
-
-    -- Distance meter: cursor-targeted
+    -- Distance meter
     local mousePos = UserInputService:GetMouseLocation()
     local closest, closestDist = nil, math.huge
     for _, plr in pairs(Players:GetPlayers()) do
@@ -451,7 +425,7 @@ RunService.RenderStepped:Connect(function()
         DistanceLabel.Text = "Distance: N/A"
     end
 
-    -- Aimlock
+    -- Aimlock logic
     if aimbotEnabled and aiming then
         local target, targetDist = nil, FOVSlider:GetValue()
         for _, plr in pairs(Players:GetPlayers()) do
@@ -474,18 +448,33 @@ RunService.RenderStepped:Connect(function()
             end
         end
     end
+
+    -- Fullbright
+    if fullbrightEnabled then
+        Lighting.ClockTime = 14
+        Lighting.Brightness = 2
+    end
+
+    -- Instant Noclip
+    if noclipEnabled and LocalPlayer.Character then
+        for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = false
+            end
+        end
+    end
 end)
 
--- Right-click aim toggle
+-- Aim toggle with right-click inside FOV
 UserInputService.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton2 then
         local mousePos = UserInputService:GetMouseLocation()
-        -- Only aim if inside FOV circle
         if (mousePos - Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)).Magnitude <= FOVSlider:GetValue() then
             aiming = true
         end
     end
 end)
+
 UserInputService.InputEnded:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton2 then
         aiming = false
