@@ -242,9 +242,9 @@ local FOVSlider = makeSlider(Content,"FOV Circle Size",252,50,500,120)
 local NoclipBtn = makeToggle(Content, "Noclip", 332, false)
 
 --[[ 
-Universal Aimbot v5 – Part 2: Functionality & Loops
+Universal Aimbot v5 – Part 2: Functionality & Loops (Fixed)
 Author: C_mthe3rd Gaming
-Features: Aimlock, ESP, Distance, Noclip, Fullbright, FOV Circle
+Features: Aimlock, ESP, Distance, Noclip toggle fix, Fullbright brightness indicator, FOV Circle
 ]]
 
 -- Fullbright button
@@ -262,13 +262,20 @@ FullbrightBtn.Parent = Frame
 
 FullbrightBtn.MouseButton1Click:Connect(function()
     fullbrightEnabled = not fullbrightEnabled
-    FullbrightBtn.TextTransparency = fullbrightEnabled and 0.5 or 0
+    FullbrightBtn.BackgroundColor3 = fullbrightEnabled and Color3.fromRGB(200,200,200) or Color3.fromRGB(45,45,45)
 end)
 
 -- Noclip toggle
 NoclipBtn.MouseButton1Click:Connect(function()
     noclipEnabled = not noclipEnabled
     NoclipBtn.Text = "Noclip: "..(noclipEnabled and "On" or "Off")
+    if LocalPlayer.Character then
+        for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = not noclipEnabled
+            end
+        end
+    end
 end)
 
 -- Theme toggle
@@ -299,8 +306,12 @@ MinimizeBtn.MouseButton1Click:Connect(function()
     Content.Visible = not minimized
     Credits.Visible = not minimized
     DistanceLabel.Visible = not minimized
-    FullbrightBtn.Visible = not minimized
-    Frame.Size = minimized and UDim2.new(0,400,0,36) or UDim2.new(0,400,0,480)
+    FullbrightBtn.Visible = not minimized -- hide fullbright when minimized
+    if minimized then
+        Frame.Size = UDim2.new(0,400,0,36)
+    else
+        Frame.Size = UDim2.new(0,400,0,480)
+    end
 end)
 
 -- FOV Circle
@@ -318,61 +329,44 @@ local highlightedPlayers = {}
 local aiming = false
 local function findRootPart(character) return character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso") end
 local function findHeadPart(character) return character:FindFirstChild("Head") or findRootPart(character) end
-
 local function setupESP(plr)
     if plr == LocalPlayer then return end
-    removeESP(plr)
-    if plr.Character then
-        local hl = Instance.new("Highlight")
-        hl.Adornee = plr.Character
-        hl.FillTransparency = 0.6
-        hl.FillColor = themeColorNow()
-        hl.OutlineColor = themeColorNow()
-        hl.Enabled = espEnabled
-        hl.Parent = CoreGui
-        highlightedPlayers[plr] = hl
+    if highlightedPlayers[plr] and highlightedPlayers[plr].Parent then highlightedPlayers[plr]:Destroy() end
+    local hl = Instance.new("Highlight")
+    hl.Adornee = plr.Character
+    hl.FillTransparency = 0.6
+    hl.FillColor = themeColorNow()
+    hl.OutlineColor = themeColorNow()
+    hl.Enabled = espEnabled
+    hl.Parent = CoreGui
+    highlightedPlayers[plr] = hl
+end
+local function removeESP(plr) 
+    if highlightedPlayers[plr] and highlightedPlayers[plr].Parent then 
+        highlightedPlayers[plr]:Destroy() 
     end
+    highlightedPlayers[plr]=nil 
 end
 
-function removeESP(plr)
-    if highlightedPlayers[plr] then
-        if highlightedPlayers[plr].Parent then highlightedPlayers[plr]:Destroy() end
-        highlightedPlayers[plr] = nil
-    end
-end
-
--- Player hooks for faster ESP updates
+-- Handle players joining/leaving and respawning
 Players.PlayerAdded:Connect(function(plr)
     plr.CharacterAdded:Connect(function(char)
-        task.wait(0.05)
+        task.wait(0.1)
         setupESP(plr)
     end)
-    plr.CharacterRemoving:Connect(function()
-        removeESP(plr)
-    end)
 end)
-
 Players.PlayerRemoving:Connect(function(plr)
     removeESP(plr)
 end)
-
--- Initial setup for current players
-for _, plr in pairs(Players:GetPlayers()) do
-    if plr.Character then setupESP(plr) end
-    plr.CharacterAdded:Connect(function(char)
-        task.wait(0.05)
-        setupESP(plr)
-    end)
-    plr.CharacterRemoving:Connect(function()
-        removeESP(plr)
-    end)
+for _,plr in pairs(Players:GetPlayers()) do 
+    if plr.Character then setupESP(plr) end 
 end
 
 -- Main update loop
 RunService.RenderStepped:Connect(function()
     local color = themeColorNow()
 
-    -- GUI colors
+    -- Update GUI borders and slider colors
     Frame.BorderColor3 = color
     MinimizeBtn.BorderColor3 = color
     ESPBtn.BorderColor3 = color
@@ -383,9 +377,8 @@ RunService.RenderStepped:Connect(function()
     FOVSlider.Fill.BackgroundColor3 = color
     NoclipBtn.BorderColor3 = color
     FullbrightBtn.BorderColor3 = color
-    FullbrightBtn.BackgroundColor3 = Color3.fromRGB(45,45,45)
 
-    -- FOV Circle
+    -- Update FOV Circle
     fovCircle.Radius = FOVSlider:GetValue()
     fovCircle.Color = color
     fovCircle.Visible = aimbotEnabled
@@ -399,7 +392,9 @@ RunService.RenderStepped:Connect(function()
             hl.Enabled = espEnabled
         end
     end
-    if highlightedPlayers[LocalPlayer] then highlightedPlayers[LocalPlayer].Enabled = false end
+    if highlightedPlayers[LocalPlayer] then
+        highlightedPlayers[LocalPlayer].Enabled = false
+    end
 
     -- Distance meter
     local mousePos = UserInputService:GetMouseLocation()
@@ -449,13 +444,13 @@ RunService.RenderStepped:Connect(function()
         end
     end
 
-    -- Fullbright
+    -- Fullbright logic
     if fullbrightEnabled then
         Lighting.ClockTime = 14
         Lighting.Brightness = 2
     end
 
-    -- Instant Noclip
+    -- Instant Noclip logic
     if noclipEnabled and LocalPlayer.Character then
         for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
             if part:IsA("BasePart") then
