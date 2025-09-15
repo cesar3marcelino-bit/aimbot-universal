@@ -47,7 +47,7 @@ ScreenGui.Parent = CoreGui
 
 local Frame = Instance.new("Frame")
 Frame.Name = "MainFrame"
-Frame.Size = UDim2.new(0,400,0,480)
+Frame.Size = UDim2.new(0,400,0,560)
 Frame.Position = UDim2.new(1,-420,0,80)
 Frame.BackgroundColor3 = Color3.fromRGB(20,20,20)
 Frame.BorderSizePixel = 2
@@ -173,7 +173,7 @@ local function makeSlider(parent,labelText,y,minVal,maxVal,initialVal)
     lbl.Size = UDim2.new(1,-24,0,24)
     lbl.Position = UDim2.new(0,12,0,y)
     lbl.BackgroundTransparency = 1
-    lbl.Text = labelText..": "..tostring(math.floor(initialVal))
+    lbl.Text = labelText..": "..string.format("%.2f", initialVal) -- show decimals
     lbl.Font = Enum.Font.SourceSansBold
     lbl.TextSize = 18
     lbl.TextColor3 = Color3.fromRGB(255,255,255)
@@ -201,45 +201,59 @@ local function makeSlider(parent,labelText,y,minVal,maxVal,initialVal)
     knob.BackgroundColor3 = Color3.fromRGB(255,255,255)
     knob.BorderSizePixel = 0
     knob.Parent = bar
-    Instance.new("UICorner",knob).CornerRadius=UDim.new(1,0)
+    Instance.new("UICorner",knob).CornerRadius = UDim.new(1,0)
 
-    local dragging=false
+    local dragging = false
     local function update(x)
-        local rel = math.clamp((x-bar.AbsolutePosition.X)/bar.AbsoluteSize.X,0,1)
+        local rel = math.clamp((x - bar.AbsolutePosition.X) / math.max(1, bar.AbsoluteSize.X), 0, 1)
         fill.Size = UDim2.new(rel,0,1,0)
         knob.Position = UDim2.new(rel,0,0.5,0)
-        local val = minVal + rel*(maxVal-minVal)
-        lbl.Text = labelText..": "..tostring(math.floor(val))
+        local val = minVal + rel * (maxVal - minVal)
+        -- show with two decimals (use "%.1f" for 1 decimal)
+        lbl.Text = labelText..": "..string.format("%.2f", val)
         return val
     end
+
     bar.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging=true update(input.Position.X)
-        end
-    end)
-    bar.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging=false end
-    end)
-    UserInputService.InputChanged:Connect(function(input)
-        if dragging and input.UserInputType==Enum.UserInputType.MouseMovement then
+            dragging = true
             update(input.Position.X)
         end
     end)
+
+    bar.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = false
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            update(input.Position.X)
+        end
+    end)
+
     return {
-        Bar=bar,
-        Fill=fill,
-        Knob=knob,
-        GetValue=function() return minVal + fill.Size.X.Scale*(maxVal-minVal) end
+        Bar = bar,
+        Fill = fill,
+        Knob = knob,
+        GetValue = function() return minVal + fill.Size.X.Scale * (maxVal - minVal) end
     }
 end
 
--- Buttons and slider
 local ESPBtn = makeToggle(Content,"ESP",12,true)
 local AimBtn = makeToggle(Content,"Aimlock",72,false)
-local HeadBtn = makeToggle(Content,"Head Aim",132,false)
-local ThemeBtn = makeThemeButton(Content,192)
-local FOVSlider = makeSlider(Content,"FOV Circle Size",252,50,500,120)
-local NoclipBtn = makeToggle(Content, "Noclip", 332, false)
+
+-- New Aimlock Strength Slider
+local StrengthSlider = makeSlider(Content,"Aimlock Strength",132,0.1,1,0.5)
+
+-- Push everything else down
+local HeadBtn = makeToggle(Content,"Head Aim",192,false)
+local ThemeBtn = makeThemeButton(Content,252)
+local FOVSlider = makeSlider(Content,"FOV Circle Size",312,50,500,120)
+local NoclipBtn = makeToggle(Content, "Noclip", 392, false)
+
+
 
 --[[ 
 Universal Aimbot v5 – Part 2: Functionality & Loops (Fixed ESP + Stable Noclip)
@@ -333,7 +347,7 @@ MinimizeBtn.MouseButton1Click:Connect(function()
     if minimized then
         Frame.Size = UDim2.new(0,400,0,36)
     else
-        Frame.Size = UDim2.new(0,400,0,480)
+        Frame.Size = UDim2.new(0,400,0,560)
     end
 end)
 
@@ -412,6 +426,8 @@ RunService.RenderStepped:Connect(function()
     ThemeBtn.BorderColor3 = color
     FOVSlider.Bar.BorderColor3 = color
     FOVSlider.Fill.BackgroundColor3 = color
+	StrengthSlider.Bar.BorderColor3 = color
+    StrengthSlider.Fill.BackgroundColor3 = color
     NoclipBtn.BorderColor3 = color
     FullbrightBtn.BorderColor3 = color
 
@@ -476,7 +492,10 @@ RunService.RenderStepped:Connect(function()
         if target and target.Character then
             local part = headAimEnabled and findHeadPart(target.Character) or findRootPart(target.Character)
             if part then
-                Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, part.Position + (part.Velocity or Vector3.new())*0.1), 0.25)
+               Camera.CFrame = Camera.CFrame:Lerp(
+    CFrame.new(Camera.CFrame.Position, part.Position + (part.Velocity or Vector3.new())*0.1),
+    StrengthSlider:GetValue()
+)
             end
         end
     end
