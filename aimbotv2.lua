@@ -344,12 +344,14 @@ MinimizeBtn.MouseButton1Click:Connect(function()
     Credits.Visible = not minimized
     DistanceLabel.Visible = not minimized
     FullbrightBtn.Visible = not minimized
+    FreecamHint.Visible = not minimized   -- <-- ADD THIS LINE
     if minimized then
         Frame.Size = UDim2.new(0,400,0,36)
     else
         Frame.Size = UDim2.new(0,400,0,560)
     end
 end)
+
 
 -- FOV Circle
 local fovCircle = Drawing.new("Circle")
